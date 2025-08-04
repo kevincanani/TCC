@@ -2,19 +2,27 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, Image } from 'react-native';
 import Test from './Screens/Test';
 
-export default function App() {
-  return (
-    <View style={styles.container}>
-      <Test/>
-    </View>
-  );
+import { NavigationContainer } from '@react-navigation/native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createStackNavigator } from '@react-navigation/stack';
+
+function BottomTabs() {
+  const Tab = createBottomTabNavigator();
+  return(
+    <Tab.Navigator>
+      <Tab.Screen name='Test' component={Test}/>
+    </Tab.Navigator>
+  )
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+export default function App() {
+  const Stack = createStackNavigator();
+
+  return (
+      <NavigationContainer>
+        <Stack.Navigator>
+          <Stack.Screen options={{headerShown:false}} name='Veterinario' component={BottomTabs}/>
+        </Stack.Navigator>
+      </NavigationContainer>
+  );
+}
