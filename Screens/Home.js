@@ -3,7 +3,7 @@ import { View, Image, StyleSheet } from "react-native";
 export default function Home() {
     return(
         <View>
-            <Image style={styles.img} source={require('../assets/ornitorrinco.png')}/>
+            <Image style={styles.img} source={require('../assets/bicho.png')}/>
         </View>
     );
 }
