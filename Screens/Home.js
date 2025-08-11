@@ -5,15 +5,15 @@ export default function Home() {
     // Estado para controlar qual imagem mostrar
     const [imagemAtual, setImagemAtual] = useState('bicho');
 
-    // Objeto com as imagens disponíve
-    // Função para trocar a imagem
-    const trocarImagem = () => {is
+    // Objeto com as imagens disponíveis
     const imagens = {
         bicho: require('../assets/bicho.png'),
         bicho2: require('../assets/bicho2.png'),
         // exemplo: cachorro: require('../assets/cachorro.png'),
     };
 
+    // Função para trocar a imagem
+    const trocarImagem = () => {
         // Se você tiver apenas 2 imagens:
         setImagemAtual(imagemAtual === 'bicho' ? 'bicho2' : 'bicho');
         
@@ -31,7 +31,6 @@ export default function Home() {
                 <Text>Trocar Imagem</Text>
             </TouchableOpacity>
         </View>
-        
     );
 }
 

@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, Image } from 'react-native';
 import Home from './Screens/Home';
+import Test from './Screens/Test'
 
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -17,6 +18,7 @@ function BottomTabs() {
       <Tab.Screen name='Home' component={Home}/>
       <Tab.Screen name='Shop' component={Shop}/>
       <Tab.Screen name='Profile' component={Profile}/>
+      <Tab.Screen name='Test' component={Test}/>
     </Tab.Navigator>
   )
 }
