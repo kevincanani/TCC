@@ -31,6 +31,7 @@ export default function Home() {
                 <Text>Trocar Imagem</Text>
             </TouchableOpacity>
         </View>
+        
     );
 }
 

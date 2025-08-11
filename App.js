@@ -5,12 +5,18 @@ import Home from './Screens/Home';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
+import Shop from './Screens/Shop';
+import Profile from './Screens/Profile';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
+
 
 function BottomTabs() {
   const Tab = createBottomTabNavigator();
   return(
     <Tab.Navigator>
       <Tab.Screen name='Home' component={Home}/>
+      <Tab.Screen name='Shop' component={Shop}/>
+      <Tab.Screen name='Profile' component={Profile}/>
     </Tab.Navigator>
   )
 }
