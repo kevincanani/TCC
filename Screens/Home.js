@@ -5,6 +5,7 @@ export default function Home() {
         <View>
             <Image style={styles.img} source={require('../assets/bicho.png')}/>
         </View>
+        
     );
 }
 
