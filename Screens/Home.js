@@ -7,13 +7,14 @@ export default function Home() {
 
     // Objeto com as imagens disponíve
     // Função para trocar a imagem
-    const trocarImagem = () => {is
+
     const imagens = {
         bicho: require('../assets/bicho.png'),
         bicho2: require('../assets/bicho2.png'),
         // exemplo: cachorro: require('../assets/cachorro.png'),
     };
 
+    const trocarImagem = () => {
         // Se você tiver apenas 2 imagens:
         setImagemAtual(imagemAtual === 'bicho' ? 'bicho2' : 'bicho');
         

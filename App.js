@@ -7,6 +7,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import Shop from './Screens/Shop';
 import Profile from './Screens/Profile';
+import Test from './Screens/Test'
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 
@@ -17,6 +18,7 @@ function BottomTabs() {
       <Tab.Screen name='Home' component={Home}/>
       <Tab.Screen name='Shop' component={Shop}/>
       <Tab.Screen name='Profile' component={Profile}/>
+      <Tab.Screen name='Test' component={Test}/>
     </Tab.Navigator>
   )
 }
