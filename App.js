@@ -9,6 +9,7 @@ import Shop from './Screens/Shop';
 import Profile from './Screens/Profile';
 import Test from './Screens/Test'
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
+import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 
 
 function BottomTabs() {
@@ -30,7 +31,10 @@ function BottomTabs() {
       options={{
         tabBarIcon: () => <FontAwesome5 name="shopping-bag" size={24} color="black" />
       }}/>
-      <Tab.Screen name='Profile' component={Profile}/>
+      <Tab.Screen name='Profile' component={Profile}
+      options={{
+        tabBarIcon: () => <FontAwesome6 name="person" size={24} color="black" />
+      }}/>
       <Tab.Screen name='Test' component={Test}/>
     </Tab.Navigator>
   )
