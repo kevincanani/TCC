@@ -5,14 +5,13 @@ export default function Home() {
     // Estado para controlar qual imagem mostrar
     const [imagemAtual, setImagemAtual] = useState('bicho');
 
-    // Objeto com as imagens disponíve
-    // Função para trocar a imagem
-    const trocarImagem = () => {is
     const imagens = {
         bicho: require('../assets/bicho.png'),
         bicho2: require('../assets/bicho2.png'),
     };
-
+    // Objeto com as imagens disponíve
+    // Função para trocar a imagem
+    const trocarImagem = () => {
         // Se você tiver apenas 2 imagens:
         setImagemAtual(imagemAtual === 'bicho' ? 'bicho2' : 'bicho');
     };
@@ -31,14 +30,14 @@ export default function Home() {
                     />
                 </View>
                 
-                {/* Indicador de qual imagem está sendo mostrada */}
+                {/* Indicador de qual imagem está sendr o mostrada */}
                 <Text style={styles.imageLabel}>
                     {imagemAtual === 'bicho' ? '🐾 Bicho 1' : '🐾 Bicho 2'}
                 </Text>
                 
                 {/* Botão estilizado */}
                 <TouchableOpacity style={styles.button} onPress={trocarImagem}>
-                    <Text style={styles.buttonText}>✨ Trocar Bicho</Text>
+                    <Text style={styles.buttonText}>✨ TrocaBicho</Text>
                 </TouchableOpacity>
             </View>
         </View>
