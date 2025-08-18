@@ -5,7 +5,7 @@ export default function Home() {
     // Estado para controlar qual imagem mostrar
     const [imagemAtual, setImagemAtual] = useState('bicho');
 
-    // Objeto com as imagens disponíve
+    // Objeto com as imagens disponível
     // Função para trocar a imagem
 
     const imagens = {
