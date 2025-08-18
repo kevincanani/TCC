@@ -19,7 +19,7 @@ export default function Profile() {
   const [selectedTab, setSelectedTab] = useState('About');
 
   const userStats = {
-    name: 'Baby Shark',
+    name: 'molesto gamer',
     joinDate: 'Monday, 7 December',
     streak: 8,
     level: 'The Fox 🦊',
