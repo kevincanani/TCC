@@ -128,7 +128,7 @@ export default function Home() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar backgroundColor="#7CB342" barStyle="light-content" />
+      <StatusBar backgroundColor="#4CAF50" barStyle="light-content" />
       
       <View style={styles.header}>
         <View style={styles.headerTop}>
@@ -170,10 +170,10 @@ export default function Home() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#7CB342',
+    backgroundColor: '#4CAF50',
   },
   header: {
-    backgroundColor: '#7CB342',
+    backgroundColor: '#4CAF50',
     paddingHorizontal: 20,
     paddingVertical: 15,
   },
@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
   },
   goalsList: {
     flex: 1,
-    backgroundColor: '#7CB342',
+    backgroundColor: '#4CAF50',
   },
   goalsContainer: {
     paddingHorizontal: 20,

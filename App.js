@@ -8,15 +8,28 @@ import { createStackNavigator } from '@react-navigation/stack';
 import Shop from './Screens/Shop';
 import Profile from './Screens/Profile';
 import Test from './Screens/Test'
-import FontAwesome from '@expo/vector-icons/FontAwesome';
+import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 
 
 function BottomTabs() {
   const Tab = createBottomTabNavigator();
   return(
-    <Tab.Navigator>
-      <Tab.Screen name='Home' component={Home}/>
-      <Tab.Screen name='Shop' component={Shop}/>
+    <Tab.Navigator screenOptions={{
+      // headerRight: (props)  => <Image style={{width: 50, height:50}} source={require('./assets/logo_petshop.png')}/>,
+      headerStyle:{backgroundColor: '#4CAF50'},
+      headerTintColor: 'white',
+      tabBarActiveBackgroundColor: '#4CAF50', 
+      tabBarInactiveBackgroundColor: '#4CAF50',
+      tabBarActiveTintColor: 'black'
+    }}>
+      <Tab.Screen name='Home' component={Home}
+      options={{
+        tabBarIcon: () => <FontAwesome5 name="home" size={24} color="black" />
+      }}/>
+      <Tab.Screen name='Shop' component={Shop}
+      options={{
+        tabBarIcon: () => <FontAwesome5 name="shopping-bag" size={24} color="black" />
+      }}/>
       <Tab.Screen name='Profile' component={Profile}/>
       <Tab.Screen name='Test' component={Test}/>
     </Tab.Navigator>
