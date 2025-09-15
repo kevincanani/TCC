@@ -6,7 +6,7 @@ const { width } = Dimensions.get('window');
 export default function Profile() {
 
   const userStats = {
-    name: 'ixi',
+    name: 'Usuário',
     totalObjetivos: 24,
     objetivosFinalizados: 18,
   };
