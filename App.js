@@ -27,6 +27,11 @@ function BottomTabs() {
       options={{
         tabBarIcon: () => <FontAwesome5 name="home" size={24} color="black" />
       }}/>
+      <Tab.Screen name='Test' component={Test}
+      options={{
+        tabBarIcon: () => <FontAwesome5 name="tasks" size={24} color="black" />
+      }}
+      />
       <Tab.Screen name='Shop' component={Shop}
       options={{
         tabBarIcon: () => <FontAwesome5 name="shopping-bag" size={24} color="black" />
@@ -35,7 +40,6 @@ function BottomTabs() {
       options={{
         tabBarIcon: () => <FontAwesome6 name="person" size={24} color="black" />
       }}/>
-      <Tab.Screen name='Test' component={Test}/>
     </Tab.Navigator>
   )
 }

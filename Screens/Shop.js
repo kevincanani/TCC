@@ -1,142 +1,85 @@
 import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
-  TouchableOpacity, 
-  SafeAreaView,
-  StatusBar,
-  Dimensions
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, Dimensions } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
 export default function Shop() {
-  const [userPoints, setUserPoints] = useState(145); // Pontos do usuário
-  const [purchasedItems, setPurchasedItems] = useState([1, 3]); // IDs dos itens comprados
+  const [pontosUsuario, setpontosUsuario] = useState(145);
+  const [itensComprados, setitensComprados] = useState([1, 3]);
 
   const [shopItems, setShopItems] = useState([
     {
       id: 1,
       name: 'Chapéu Pirata',
-      category: 'Acessórios',
+      categoria: 'Acessórios',
       price: 25,
       icon: '🏴‍☠️',
       color: '#8B5CF6',
-      description: 'Um chapéu estiloso para aventuras'
     },
     {
       id: 2,
       name: 'Óculos de Sol',
-      category: 'Acessórios',
+      categoria: 'Acessórios',
       price: 15,
       icon: '🕶️',
       color: '#06B6D4',
-      description: 'Para ficar com estilo'
     },
     {
       id: 3,
       name: 'Gravata Borboleta',
-      category: 'Acessórios',
+      categoria: 'Acessórios',
       price: 20,
       icon: '🎀',
       color: '#F97316',
-      description: 'Elegância em forma de gravata'
     },
-    {
-      id: 4,
-      name: 'Coroa Dourada',
-      category: 'Acessórios',
-      price: 50,
-      icon: '👑',
-      color: '#F59E0B',
-      description: 'Para se sentir realeza'
-    },
-    {
-      id: 5,
-      name: 'Comida Premium',
-      category: 'Alimentação',
-      price: 10,
-      icon: '🍖',
-      color: '#10B981',
-      description: 'Aumenta a felicidade +20'
-    },
-    {
-      id: 6,
-      name: 'Vitaminas',
-      category: 'Saúde',
-      price: 30,
-      icon: '💊',
-      color: '#EC4899',
-      description: 'Aumenta a energia +15'
-    },
-    {
-      id: 7,
-      name: 'Bola de Brincar',
-      category: 'Brinquedos',
-      price: 12,
-      icon: '⚽',
-      color: '#EF4444',
-      description: 'Diversão garantida'
-    },
-    {
-      id: 8,
-      name: 'Casa Luxuosa',
-      category: 'Moradia',
-      price: 100,
-      icon: '🏰',
-      color: '#7C3AED',
-      description: 'Uma casa dos sonhos'
-    }
   ]);
 
-  const categories = ['Todos', 'Acessórios', 'Alimentação', 'Saúde', 'Brinquedos', 'Moradia'];
-  const [selectedCategory, setSelectedCategory] = useState('Todos');
+  const categorias = ['Todos', 'Acessórios'];
+  const [categoriaSelect, setcategoriaSelect] = useState('Todos');
 
-  const filteredItems = selectedCategory === 'Todos' 
+  const itensFiltrados = categoriaSelect === 'Todos' 
     ? shopItems 
-    : shopItems.filter(item => item.category === selectedCategory);
+    : shopItems.filter(item => item.categoria === categoriaSelect);
 
   const purchaseItem = (item) => {
-    if (userPoints >= item.price && !purchasedItems.includes(item.id)) {
-      setUserPoints(prev => prev - item.price);
-      setPurchasedItems(prev => [...prev, item.id]);
+    if (pontosUsuario >= item.price && !itensComprados.includes(item.id)) {
+      setpontosUsuario(prev => prev - item.price);
+      setitensComprados(prev => [...prev, item.id]);
     }
   };
 
-  const renderCategoryTab = (category) => (
+  const rendercategoriaTab = (categoria) => (
     <TouchableOpacity
-      key={category}
+      key={categoria}
       style={[
-        styles.categoryTab,
-        selectedCategory === category && styles.activeCategoryTab
+        styles.categoriaTab,
+        categoriaSelect === categoria && styles.activecategoriaTab
       ]}
-      onPress={() => setSelectedCategory(category)}
+      onPress={() => setcategoriaSelect(categoria)}
     >
       <Text style={[
-        styles.categoryText,
-        selectedCategory === category && styles.activeCategoryText
+        styles.categoriaText,
+        categoriaSelect === categoria && styles.activecategoriaText
       ]}>
-        {category}
+        {categoria}
       </Text>
     </TouchableOpacity>
   );
 
   const renderShopItem = (item) => {
-    const isPurchased = purchasedItems.includes(item.id);
-    const canAfford = userPoints >= item.price;
+    const foiComprado = itensComprados.includes(item.id);
+    const podeComprar = pontosUsuario >= item.price;
 
     return (
       <TouchableOpacity
         key={item.id}
         style={[
           styles.shopItem,
-          isPurchased && styles.purchasedItem
+          foiComprado && styles.purchasedItem
         ]}
         onPress={() => purchaseItem(item)}
         activeOpacity={0.8}
-        disabled={isPurchased || !canAfford}
+        disabled={foiComprado || !podeComprar}
       >
         <View style={styles.itemContent}>
           <View style={[styles.iconContainer, { backgroundColor: item.color + '20' }]}>
@@ -146,23 +89,23 @@ export default function Shop() {
           <View style={styles.itemInfo}>
             <Text style={styles.itemName}>{item.name}</Text>
             <Text style={styles.itemDescription}>{item.description}</Text>
-            <Text style={styles.itemCategory}>{item.category}</Text>
+            <Text style={styles.itemcategoria}>{item.categoria}</Text>
           </View>
 
           <View style={styles.itemRight}>
             <View style={styles.priceContainer}>
               <Text style={styles.priceText}>{item.price}</Text>
-              <Text style={styles.pointsIcon}>⚡</Text>
+              <Text style={styles.pontosIcone}>⚡</Text>
             </View>
             
             <View style={[
               styles.purchaseButton,
-              isPurchased ? styles.ownedButton : 
-              canAfford ? styles.buyButton : styles.cantAffordButton
+              foiComprado ? styles.ownedButton : 
+              podeComprar ? styles.buyButton : styles.cantAffordButton
             ]}>
-              {isPurchased ? (
+              {foiComprado ? (
                 <Text style={styles.ownedText}>✓</Text>
-              ) : canAfford ? (
+              ) : podeComprar ? (
                 <Text style={styles.buyText}>Comprar</Text>
               ) : (
                 <Text style={styles.cantAffordText}>💰</Text>
@@ -180,24 +123,21 @@ export default function Shop() {
       
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <View style={styles.headerIcon}>
-            <Text style={styles.shopIcon}>🛍️</Text>
-          </View>
           <Text style={styles.headerTitle}>Loja</Text>
-          <View style={styles.pointsDisplay}>
-            <Text style={styles.pointsText}>{userPoints}</Text>
-            <Text style={styles.pointsIcon}>⚡</Text>
+          <View style={styles.pontosDisplay}>
+            <Text style={styles.pontosTexto}>{pontosUsuario}</Text>
+            <Text style={styles.pontosIcone}>⚡</Text>
           </View>
         </View>
       </View>
 
       <ScrollView 
         horizontal 
-        style={styles.categoriesContainer}
+        style={styles.categoriasContainer}
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.categoriesContent}
+        contentContainerStyle={styles.categoriasContent}
       >
-        {categories.map(renderCategoryTab)}
+        {categorias.map(rendercategoriaTab)}
       </ScrollView>
 
       <ScrollView 
@@ -206,10 +146,10 @@ export default function Shop() {
         contentContainerStyle={styles.itemsContainer}
       >
         <Text style={styles.sectionTitle}>
-          {selectedCategory === 'Todos' ? 'Todos os itens' : selectedCategory}
+          {categoriaSelect === 'Todos' ? 'Todos os itens' : categoriaSelect}
         </Text>
         
-        {filteredItems.map(renderShopItem)}
+        {itensFiltrados.map(renderShopItem)}
         
         <View style={styles.bottomSpace} />
       </ScrollView>
@@ -251,7 +191,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginHorizontal: 15,
   },
-  pointsDisplay: {
+  pontosDisplay: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.2)',
@@ -259,38 +199,38 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
   },
-  pointsText: {
+  pontosTexto: {
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
     marginRight: 4,
   },
-  pointsIcon: {
+  pontosIcone: {
     fontSize: 16,
   },
-  categoriesContainer: {
+  categoriasContainer: {
     backgroundColor: '#9C27B0',
     paddingVertical: 10,
   },
-  categoriesContent: {
+  categoriasContent: {
     paddingHorizontal: 20,
     gap: 10,
   },
-  categoryTab: {
+  categoriaTab: {
     backgroundColor: 'rgba(255,255,255,0.2)',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
   },
-  activeCategoryTab: {
+  activecategoriaTab: {
     backgroundColor: 'white',
   },
-  categoryText: {
+  categoriaText: {
     color: 'white',
     fontSize: 14,
     fontWeight: '600',
   },
-  activeCategoryText: {
+  activecategoriaText: {
     color: '#9C27B0',
   },
   itemsList: {
@@ -354,7 +294,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginBottom: 2,
   },
-  itemCategory: {
+  itemcategoria: {
     fontSize: 11,
     color: '#9CA3AF',
   },

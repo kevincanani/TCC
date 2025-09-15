@@ -6,7 +6,7 @@ export default function Home() {
     const [imagemAtual, setImagemAtual] = useState('bicho');
 
     const imagens = {
-        bicho: require('../assets/bicho.png'),
+        bicho: require('../assets/bicho1.png'),
         bicho2: require('../assets/bicho2.png'),
     };
     // Objeto com as imagens disponíve
@@ -20,7 +20,7 @@ export default function Home() {
         <View style={styles.container}>
             {/* Card principal com sombra */}
             <View style={styles.card}>
-                <Text style={styles.title}>🌿 AAAAAAAAAAA</Text>
+                <Text style={styles.title}>Mascote</Text>
                 
                 {/* Container da imagem com bordas elegantes */}
                 <View style={styles.imageContainer}>
@@ -32,12 +32,12 @@ export default function Home() {
                 
                 {/* Indicador de qual imagem está sendr o mostrada */}
                 <Text style={styles.imageLabel}>
-                    {imagemAtual === 'bicho' ? '🐾 Bicho 1' : '🐾 Bicho 2'}
+                    {imagemAtual === 'bicho' ? 'Bicho 1' : 'Bicho 2'}
                 </Text>
                 
                 {/* Botão estilizado */}
                 <TouchableOpacity style={styles.button} onPress={trocarImagem}>
-                    <Text style={styles.buttonText}>✨ TrocaBicho</Text>
+                    <Text style={styles.buttonText}>TrocaBicho</Text>
                 </TouchableOpacity>
             </View>
         </View>

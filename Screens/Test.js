@@ -1,121 +1,90 @@
 import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
-  TouchableOpacity, 
-  SafeAreaView,
-  StatusBar,
-  Dimensions
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, Dimensions } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
 export default function Home() {
-  const [goals, setGoals] = useState([
+  const [objetivos, setobjetivos] = useState([
     {
       id: 1,
-      title: 'Floss my teeth',
-      category: 'Hygiene',
-      points: 5,
-      completed: true,
+      title: 'Usar fio-dental',
+      pontos: 5,
+      finalizado: true,
       icon: '🦷',
       color: '#8B5CF6'
     },
     {
       id: 2,
-      title: 'Brush teeth',
-      category: 'Hygiene',
-      points: 5,
-      completed: false,
-      progress: '1 / 2',
+      title: 'Escovar os dentes',
+      pontos: 5,
+      finalizado: false,
+      progresso: '1 / 2',
       icon: '🪥',
       color: '#06B6D4'
     },
     {
       id: 3,
-      title: 'Write in journal',
-      category: 'Self-kindness',
-      points: 5,
-      completed: true,
+      title: 'Escrever no diário',
+      pontos: 5,
+      finalizado: true,
       icon: '📖',
       color: '#F97316'
     },
     {
       id: 4,
-      title: 'Take 3 deep breaths',
-      category: 'Self-kindness',
-      points: 5,
-      completed: true,
-      icon: '🍃',
-      color: '#10B981'
-    },
-    {
-      id: 5,
-      title: 'Take a stretch break',
-      category: 'Self-kindness',
-      points: 5,
-      completed: true,
-      icon: '🦒',
-      color: '#F59E0B'
-    },
-    {
-      id: 6,
-      title: 'Wash my face',
-      category: 'Hygiene',
-      points: 5,
-      completed: true,
+      title: 'Lavar o rosto',
+      pontos: 5,
+      finalizado: true,
       icon: '🧼',
       color: '#EC4899'
     }
   ]);
 
-  const completedGoals = goals.filter(goal => goal.completed).length;
-  const totalGoals = goals.length;
-  const remainingGoals = totalGoals - completedGoals;
+  const finalizadoobjetivos = objetivos.filter(objetivo => objetivo.finalizado).length;
+  const totalobjetivos = objetivos.length;
+  const remainingobjetivos = totalobjetivos - finalizadoobjetivos;
 
-  const toggleGoal = (goalId) => {
-    setGoals(prevGoals =>
-      prevGoals.map(goal =>
-        goal.id === goalId ? { ...goal, completed: !goal.completed } : goal
+  const toggleobjetivo = (objetivoId) => {
+    setobjetivos(prevobjetivos =>
+      prevobjetivos.map(objetivo =>
+        objetivo.id === objetivoId ? { ...objetivo, finalizado: !objetivo.finalizado } : objetivo
       )
     );
   };
 
-  const renderGoalItem = (goal) => (
+  const renderobjetivoItem = (objetivo) => (
     <TouchableOpacity
-      key={goal.id}
-      style={styles.goalItem}
-      onPress={() => toggleGoal(goal.id)}
+      key={objetivo.id}
+      style={styles.objetivoItem}
+      onPress={() => toggleobjetivo(objetivo.id)}
       activeOpacity={0.8}
     >
-      <View style={styles.goalContent}>
-        <View style={[styles.iconContainer, { backgroundColor: goal.color + '20' }]}>
-          <Text style={styles.goalIcon}>{goal.icon}</Text>
+      <View style={styles.objetivoContent}>
+        <View style={[styles.iconContainer, { backgroundColor: objetivo.color + '20' }]}>
+          <Text style={styles.objetivoIcon}>{objetivo.icon}</Text>
         </View>
         
-        <View style={styles.goalInfo}>
+        <View style={styles.objetivoInfo}>
           <View style={styles.titleRow}>
-            {goal.progress && (
-              <Text style={styles.progressText}>{goal.progress} </Text>
+            {objetivo.progresso && (
+              <Text style={styles.progressoText}>{objetivo.progresso} </Text>
             )}
-            <Text style={styles.goalTitle}>{goal.title}</Text>
+            <Text style={styles.objetivoTitle}>{objetivo.title}</Text>
           </View>
-          <Text style={styles.goalCategory}>{goal.category}</Text>
+          <Text style={styles.objetivocategoria}>{objetivo.categoria}</Text>
         </View>
 
-        <View style={styles.goalRight}>
-          <View style={styles.pointsContainer}>
-            <Text style={styles.pointsText}>{goal.points}</Text>
-            <Text style={styles.pointsIcon}>⚡</Text>
+        <View style={styles.objetivoRight}>
+          <View style={styles.pontosContainer}>
+            <Text style={styles.pontosText}>{objetivo.pontos}</Text>
+            <Text style={styles.pontosIcon}>⚡</Text>
           </View>
           
           <View style={[
             styles.statusButton,
-            goal.completed ? styles.completedButton : styles.pendingButton
+            objetivo.finalizado ? styles.finalizadoButton : styles.pendingButton
           ]}>
-            {goal.completed ? (
+            {objetivo.finalizado ? (
               <Text style={styles.checkmark}>✓</Text>
             ) : (
               <Text style={styles.plusIcon}>+</Text>
@@ -132,34 +101,23 @@ export default function Home() {
       
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <View style={styles.headerIcon}>
-            <Text style={styles.calendarIcon}>📅</Text>
-          </View>
           <Text style={styles.headerTitle}>
-            {remainingGoals} goals left for today!
+            {remainingobjetivos} objeitovs a serem finalizadas hoje!
           </Text>
-          <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.actionButton}>
-              <Text style={styles.actionIcon}>≡</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton}>
-              <Text style={styles.actionIcon}>⋮⋮</Text>
-            </TouchableOpacity>
-          </View>
         </View>
       </View>
 
       <ScrollView 
-        style={styles.goalsList}
+        style={styles.objetivosList}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.goalsContainer}
+        contentContainerStyle={styles.objetivosContainer}
       >
-        {goals.map(renderGoalItem)}
+        {objetivos.map(renderobjetivoItem)}
         
-        <TouchableOpacity style={styles.addGoalButton} activeOpacity={0.8}>
-          <View style={styles.addGoalContent}>
-            <Text style={styles.addGoalIcon}>+</Text>
-            <Text style={styles.addGoalText}>Add a goal</Text>
+        <TouchableOpacity style={styles.addobjetivoButton} activeOpacity={0.8}>
+          <View style={styles.addobjetivoContent}>
+            <Text style={styles.addobjetivoIcon}>+</Text>
+            <Text style={styles.addobjetivoText}>Adicionar objetivo</Text>
           </View>
         </TouchableOpacity>
       </ScrollView>
@@ -182,14 +140,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  headerIcon: {
-    width: 40,
-    height: 40,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   calendarIcon: {
     fontSize: 20,
   },
@@ -201,32 +151,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginHorizontal: 15,
   },
-  headerActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  actionButton: {
-    width: 40,
-    height: 40,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionIcon: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  goalsList: {
+  objetivosList: {
     flex: 1,
     backgroundColor: '#4CAF50',
   },
-  goalsContainer: {
+  objetivosContainer: {
     paddingHorizontal: 20,
     paddingBottom: 100,
   },
-  goalItem: {
+  objetivoItem: {
     backgroundColor: 'white',
     borderRadius: 16,
     marginBottom: 12,
@@ -239,7 +172,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  goalContent: {
+  objetivoContent: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
@@ -252,53 +185,36 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 12,
   },
-  goalIcon: {
+  objetivoIcon: {
     fontSize: 24,
   },
-  goalInfo: {
+  objetivoInfo: {
     flex: 1,
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  progressText: {
+  progressoText: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#10B981',
     marginRight: 4,
   },
-  goalTitle: {
+  objetivoTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1F2937',
     flex: 1,
   },
-  goalCategory: {
+  objetivocategoria: {
     fontSize: 14,
     color: '#9CA3AF',
     marginTop: 2,
   },
-  goalRight: {
+  objetivoRight: {
     alignItems: 'center',
     gap: 8,
-  },
-  pointsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  pointsText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginRight: 2,
-  },
-  pointsIcon: {
-    fontSize: 12,
   },
   statusButton: {
     width: 32,
@@ -307,7 +223,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  completedButton: {
+  finalizadoButton: {
     backgroundColor: '#10B981',
   },
   pendingButton: {
@@ -323,24 +239,24 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
   },
-  addGoalButton: {
+  addobjetivoButton: {
     backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 16,
     marginTop: 20,
   },
-  addGoalContent: {
+  addobjetivoContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
   },
-  addGoalIcon: {
+  addobjetivoIcon: {
     color: 'white',
     fontSize: 24,
     fontWeight: 'bold',
     marginRight: 12,
   },
-  addGoalText: {
+  addobjetivoText: {
     color: 'white',
     fontSize: 18,
     fontWeight: '600',
