@@ -1,10 +1,16 @@
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, Image } from 'react-native';
+
+import 'react-native-gesture-handler';
+
 import Home from './Screens/Home';
+import Login from './Screens/Login';
+import Cadastro from './Screens/Cadastro';
 
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
+
 import Shop from './Screens/Shop';
 import Profile from './Screens/Profile';
 import Tasks from './Screens/Tasks';
@@ -49,7 +55,12 @@ export default function App() {
 
   return (
       <NavigationContainer>
-        <Stack.Navigator>
+        <Stack.Navigator
+        screenOptions={{
+          headerStyle:{backgroundColor: '#4CAF50'}
+        }}>
+          <Stack.Screen name='Login' component={Login}/>
+          <Stack.Screen name='Cadastro' component={Cadastro}/>
           <Stack.Screen options={{headerShown:false}} name='Home' component={BottomTabs}/>
         </Stack.Navigator>
       </NavigationContainer>
