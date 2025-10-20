@@ -47,6 +47,7 @@ export default function Home() {
   const finalizadoobjetivos = objetivos.filter(objetivo => objetivo.finalizado).length;
   const totalobjetivos = objetivos.length;
   const remainingobjetivos = totalobjetivos - finalizadoobjetivos;
+  const pontosGanhos = objetivos.filter(objetivo => objetivo.finalizado).reduce((total, objetivo) => total + objetivo.pontos, 0);
 
   const toggleobjetivo = (objetivoId) => {
     setobjetivos(prevobjetivos =>
@@ -112,12 +113,12 @@ export default function Home() {
         </View>
 
         <View style={styles.objetivoRight}>
-          <View style={styles.pontosContainer}>
-            <Text style={styles.pontosText}>{objetivo.pontos}</Text>
-            <Text style={styles.pontosIcon}>⚡</Text>
-          </View>
-          
           <View style={styles.actionButtons}>
+            <View style={styles.pontosContainer}>
+              <Text style={styles.pontosText}>{objetivo.pontos}</Text>
+              <Text style={styles.pontosIcon}>⚡</Text>
+            </View>
+
             <View style={[
               styles.statusButton,
               objetivo.finalizado ? styles.finalizadoButton : styles.pendingButton
@@ -154,6 +155,10 @@ export default function Home() {
           <Text style={styles.headerTitle}>
             {remainingobjetivos} objetivos a serem finalizadas hoje!
           </Text>
+          <View style={styles.pontosHeader}>
+            <Text style={styles.pontosHeaderText}>{pontosGanhos}</Text>
+            <Text style={styles.pontosHeaderIcon}>⚡</Text>
+          </View>
         </View>
       </View>
 
@@ -249,6 +254,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  pontosHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 4,
+  },
+  pontosHeaderText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  pontosHeaderIcon: {
+    fontSize: 18,
+  },
   calendarIcon: {
     fontSize: 20,
   },
@@ -257,8 +279,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: 'white',
-    textAlign: 'center',
-    marginHorizontal: 15,
+    marginRight: 12,
   },
   objetivosList: {
     flex: 1,
@@ -322,8 +343,21 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   objetivoRight: {
+    alignItems: 'flex-end',
+  },
+  pontosContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 2,
+    marginBottom: 8,
+  },
+  pontosText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#F59E0B',
+  },
+  pontosIcon: {
+    fontSize: 14,
   },
   actionButtons: {
     flexDirection: 'row',
