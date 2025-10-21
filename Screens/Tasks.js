@@ -153,7 +153,7 @@ export default function Home() {
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <Text style={styles.headerTitle}>
-            {remainingobjetivos} objetivos a serem finalizadas hoje!
+            {remainingobjetivos} objetivos a serem finalizados hoje!
           </Text>
           <View style={styles.pontosHeader}>
             <Text style={styles.pontosHeaderText}>{pontosGanhos}</Text>
