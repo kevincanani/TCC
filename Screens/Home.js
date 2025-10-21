@@ -2,27 +2,21 @@ import React, { useState } from 'react';
 import { View, Image, StyleSheet, TouchableOpacity, Text } from "react-native";
 
 export default function Home() {
-    // Estado para controlar qual imagem mostrar
     const [imagemAtual, setImagemAtual] = useState('bicho');
 
     const imagens = {
         bicho: require('../assets/bicho1.png'),
         bicho2: require('../assets/bicho2.png'),
     };
-    // Objeto com as imagens disponíve
-    // Função para trocar a imagem
     const trocarImagem = () => {
-        // Se você tiver apenas 2 imagens:
         setImagemAtual(imagemAtual === 'bicho' ? 'bicho2' : 'bicho');
     };
 
     return(
         <View style={styles.container}>
-            {/* Card principal com sombra */}
             <View style={styles.card}>
                 <Text style={styles.title}>Mascote</Text>
                 
-                {/* Container da imagem com bordas elegantes */}
                 <View style={styles.imageContainer}>
                     <Image
                         style={styles.img}
@@ -30,12 +24,10 @@ export default function Home() {
                     />
                 </View>
                 
-                {/* Indicador de qual imagem está sendr o mostrada */}
                 <Text style={styles.imageLabel}>
                     {imagemAtual === 'bicho' ? 'Bicho 1' : 'Bicho 2'}
                 </Text>
                 
-                {/* Botão estilizado */}
                 <TouchableOpacity style={styles.button} onPress={trocarImagem}>
                     <Text style={styles.buttonText}>TrocaBicho</Text>
                 </TouchableOpacity>
