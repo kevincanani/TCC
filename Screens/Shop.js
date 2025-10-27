@@ -34,37 +34,12 @@ export default function Shop() {
     },
   ]);
 
-  const categorias = ['Todos', 'Acessórios'];
-  const [categoriaSelect, setcategoriaSelect] = useState('Todos');
-
-  const itensFiltrados = categoriaSelect === 'Todos' 
-    ? shopItems 
-    : shopItems.filter(item => item.categoria === categoriaSelect);
-
   const purchaseItem = (item) => {
     if (pontosUsuario >= item.price && !itensComprados.includes(item.id)) {
       setpontosUsuario(prev => prev - item.price);
       setitensComprados(prev => [...prev, item.id]);
     }
   };
-
-  const rendercategoriaTab = (categoria) => (
-    <TouchableOpacity
-      key={categoria}
-      style={[
-        styles.categoriaTab,
-        categoriaSelect === categoria && styles.activecategoriaTab
-      ]}
-      onPress={() => setcategoriaSelect(categoria)}
-    >
-      <Text style={[
-        styles.categoriaText,
-        categoriaSelect === categoria && styles.activecategoriaText
-      ]}>
-        {categoria}
-      </Text>
-    </TouchableOpacity>
-  );
 
   const renderShopItem = (item) => {
     const foiComprado = itensComprados.includes(item.id);
@@ -132,24 +107,13 @@ export default function Shop() {
       </View>
 
       <ScrollView 
-        horizontal 
-        style={styles.categoriasContainer}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.categoriasContent}
-      >
-        {categorias.map(rendercategoriaTab)}
-      </ScrollView>
-
-      <ScrollView 
         style={styles.itemsList}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.itemsContainer}
       >
-        <Text style={styles.sectionTitle}>
-          {categoriaSelect === 'Todos' ? 'Todos os itens' : categoriaSelect}
-        </Text>
+        <Text style={styles.sectionTitle}>Todos os itens</Text>
         
-        {itensFiltrados.map(renderShopItem)}
+        {shopItems.map(renderShopItem)}
         
         <View style={styles.bottomSpace} />
       </ScrollView>
@@ -160,10 +124,10 @@ export default function Shop() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#9C27B0',
+    backgroundColor: '#ddffbc',
   },
   header: {
-    backgroundColor: '#9C27B0',
+    backgroundColor: '#ddffbc',
     paddingHorizontal: 20,
     paddingVertical: 15,
   },
@@ -187,7 +151,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 24,
     fontWeight: 'bold',
-    color: 'white',
+    color: 'black',
     textAlign: 'center',
     marginHorizontal: 15,
   },
@@ -200,7 +164,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   pontosTexto: {
-    color: 'white',
+    color: 'black',
     fontSize: 18,
     fontWeight: 'bold',
     marginRight: 4,
@@ -208,40 +172,15 @@ const styles = StyleSheet.create({
   pontosIcone: {
     fontSize: 16,
   },
-  categoriasContainer: {
-    backgroundColor: '#9C27B0',
-    paddingVertical: 10,
-  },
-  categoriasContent: {
-    paddingHorizontal: 20,
-    gap: 10,
-  },
-  categoriaTab: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  activecategoriaTab: {
-    backgroundColor: 'white',
-  },
-  categoriaText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  activecategoriaText: {
-    color: '#9C27B0',
-  },
   itemsList: {
     flex: 1,
-    backgroundColor: '#9C27B0',
+    backgroundColor: '#ddffbc',
   },
   itemsContainer: {
     paddingHorizontal: 20,
   },
   sectionTitle: {
-    color: 'white',
+    color: 'black',
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 15,
