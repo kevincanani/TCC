@@ -2,6 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, Image } from 'react-native';
 
 import SplashScreen from './Screens/SplashScreen';
+import Welcome from './Screens/Welcome';
 
 import 'react-native-gesture-handler';
 
@@ -55,6 +56,7 @@ export default function App() {
         screenOptions={{
           headerStyle:{backgroundColor: '#4CAF50'}
         }}>
+          <Stack.Screen name="Welcome" component={Welcome} />
           <Stack.Screen name='Splash' component={SplashScreen} />
           <Stack.Screen name='Login' component={Login}/>
           <Stack.Screen name='Cadastro' component={Cadastro}/>
