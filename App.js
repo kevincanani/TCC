@@ -1,6 +1,9 @@
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, Image } from 'react-native';
 
+import SplashScreen from './Screens/SplashScreen';
+import Welcome from './Screens/Welcome';
+
 import 'react-native-gesture-handler';
 
 import Home from './Screens/Home';
@@ -49,10 +52,12 @@ export default function App() {
 
   return (
       <NavigationContainer>
-        <Stack.Navigator
+        <Stack.Navigator initialRouteName="Splash"
         screenOptions={{
           headerStyle:{backgroundColor: '#4CAF50'}
         }}>
+          <Stack.Screen name="Welcome" component={Welcome} />
+          <Stack.Screen name='Splash' component={SplashScreen} />
           <Stack.Screen name='Login' component={Login}/>
           <Stack.Screen name='Cadastro' component={Cadastro}/>
           <Stack.Screen options={{headerShown:false}} name='Home' component={BottomTabs}/>

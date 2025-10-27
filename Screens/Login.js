@@ -10,7 +10,7 @@ export default function Login({navigation}) {
     const VerificaUser = () => {
         signInWithEmailAndPassword(auth, email, senha)
             .then((userCredential) => {
-                    navigation.navigate('Home')
+                navigation.navigate('Welcome')
             })
             .catch((error) => {
                 console.log('Erro ao logar! ',error.message);
