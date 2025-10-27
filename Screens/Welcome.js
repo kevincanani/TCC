@@ -14,11 +14,12 @@ import {
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export default function Welcome({ navigation }) {
+export default function Welcome({ navigation, route }) {
     const [modalVisible, setModalVisible] = useState(false);
     const [nomeUsuario, setNomeUsuario] = useState('');
     const [nomePinguim, setNomePinguim] = useState('');
     const [jaTemDados, setJaTemDados] = useState(false);
+    const [mensagemBemVindo, setMensagemBemVindo] = useState('Bem-vindo ao');
     
     // Animações
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -26,10 +27,11 @@ export default function Welcome({ navigation }) {
     const slideAnim = useRef(new Animated.Value(50)).current;
 
     useEffect(() => {
-        // Verifica se já tem dados salvos
-        checkUserData();
-        
-        // Animação inicial
+        iniciarTela();
+    }, []);
+
+    const iniciarTela = async () => {
+        // Inicia animação
         Animated.parallel([
             Animated.timing(fadeAnim, {
                 toValue: 1,
@@ -48,29 +50,41 @@ export default function Welcome({ navigation }) {
                 delay: 300,
                 useNativeDriver: true,
             })
-        ]).start(() => {
-            // Após animação, decide o que fazer
-            setTimeout(() => {
-                checkUserData();
-            }, 800);
-        });
-    }, []);
+        ]).start();
 
-    const checkUserData = async () => {
+        // Aguarda um pouco para animação aparecer
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Verifica se tem dados salvos
+        await verificarDados();
+    };
+
+    const verificarDados = async () => {
         try {
             const userData = await AsyncStorage.getItem('userData');
+            
             if (userData) {
-                // Se já tem dados, vai direto para Home após animação
+                // Usuário já tem dados - voltando
                 setJaTemDados(true);
+                setMensagemBemVindo('Bem-vindo de volta!');
+                
+                // Aguarda mais um pouco e vai para Home
                 setTimeout(() => {
                     navigation.replace('Home');
                 }, 1500);
             } else {
-                // Se não tem dados, mostra o modal
-                setModalVisible(true);
+                // Usuário novo - primeira vez
+                setJaTemDados(false);
+                setMensagemBemVindo('Bem-vindo ao');
+                
+                // Mostra o modal após animação
+                setTimeout(() => {
+                    setModalVisible(true);
+                }, 500);
             }
         } catch (error) {
             console.log('Erro ao verificar dados:', error);
+            // Em caso de erro, mostra o modal
             setModalVisible(true);
         }
     };
@@ -91,10 +105,10 @@ export default function Welcome({ navigation }) {
             
             await AsyncStorage.setItem('userData', JSON.stringify(userData));
             
-            // Animação de saída do modal
+            // Fecha modal com animação
             setModalVisible(false);
             
-            // Navega para Home após salvar
+            // Navega para Home
             setTimeout(() => {
                 navigation.replace('Home');
             }, 500);
@@ -129,9 +143,7 @@ export default function Welcome({ navigation }) {
                         }
                     ]}
                 >
-                    <Text style={styles.welcomeText}>
-                        {jaTemDados ? 'Bem-vindo de volta!' : 'Bem-vindo ao'}
-                    </Text>
+                    <Text style={styles.welcomeText}>{mensagemBemVindo}</Text>
                     <Text style={styles.appName}>Platlist</Text>
                     <Text style={styles.subtitle}>
                         {jaTemDados ? 'Carregando... 🎯' : 'Vamos começar sua jornada! 🎯'}
@@ -139,7 +151,7 @@ export default function Welcome({ navigation }) {
                 </Animated.View>
             </Animated.View>
 
-            {/* Modal de Cadastro - Só aparece na primeira vez */}
+            {/* Modal de Cadastro - Só aparece para usuários novos */}
             <Modal
                 animationType="slide"
                 transparent={true}
@@ -232,6 +244,7 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontWeight: '600',
         marginBottom: 5,
+        textAlign: 'center',
     },
     appName: {
         fontSize: 42,
@@ -247,6 +260,7 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#E8F5E9',
         fontWeight: '500',
+        textAlign: 'center',
     },
     // Estilos do Modal
     modalOverlay: {
