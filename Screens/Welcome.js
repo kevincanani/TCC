@@ -11,6 +11,7 @@ import {
     KeyboardAvoidingView,
     Platform
 } from 'react-native';
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Welcome({ navigation }) {
