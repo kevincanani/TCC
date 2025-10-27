@@ -13,7 +13,6 @@ import { createStackNavigator } from '@react-navigation/stack';
 
 import Shop from './Screens/Shop';
 import Profile from './Screens/Profile';
-import Tasks from './Screens/Tasks';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 
@@ -33,11 +32,6 @@ function BottomTabs() {
       options={{
         tabBarIcon: () => <FontAwesome5 name="home" size={24} color="black" />
       }}/>
-      <Tab.Screen name='Tasks' component={Tasks}
-      options={{
-        tabBarIcon: () => <FontAwesome5 name="tasks" size={24} color="black" />
-      }}
-      />
       <Tab.Screen name='Shop' component={Shop}
       options={{
         tabBarIcon: () => <FontAwesome5 name="shopping-bag" size={24} color="black" />

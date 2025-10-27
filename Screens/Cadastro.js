@@ -1,27 +1,25 @@
 import { StyleSheet, View, Text, TextInput, TouchableOpacity, Alert } from "react-native"
 import { useState } from 'react';
-import { auth, db } from "../controller"; // Importe o db também
+import { auth, db } from "../controller";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore"; // Importe funções do Firestore
+import { doc, setDoc } from "firebase/firestore";
 
 export default function Cadastro({ navigation }) {
 
     const [email, setEmail] = useState("");
     const [senha, setSenha] = useState("");
-    const [nome, setNome] = useState(""); // Campo adicional opcional
+    const [nome, setNome] = useState("");
 
     const RegistroUsuario = async () => {
         try {
-            // 1. Cria o usuário no Authentication
             const userCredential = await createUserWithEmailAndPassword(auth, email, senha);
             const user = userCredential.user;
             
             console.log("Usuário cadastrado!", user.email);
 
-            // 2. Salva dados adicionais no Firestore
             await setDoc(doc(db, "usuarios", user.uid), {
                 email: user.email,
-                nome: nome || "Usuário", // Use o nome ou um valor padrão
+                nome: nome || "Usuário",
                 dataCadastro: new Date().toISOString(),
                 uid: user.uid
             });
@@ -33,7 +31,6 @@ export default function Cadastro({ navigation }) {
         } catch (error) {
             console.log('Erro:', error.message);
             
-            // Mensagens de erro em português
             let mensagemErro = "Erro ao cadastrar usuário";
             if (error.code === 'auth/email-already-in-use') {
                 mensagemErro = "Este email já está em uso";
