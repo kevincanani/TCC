@@ -17,6 +17,7 @@ export default function Welcome({ navigation }) {
     const [modalVisible, setModalVisible] = useState(false);
     const [nomeUsuario, setNomeUsuario] = useState('');
     const [nomePinguim, setNomePinguim] = useState('');
+    const [jaTemDados, setJaTemDados] = useState(false);
     
     // Animações
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -47,10 +48,10 @@ export default function Welcome({ navigation }) {
                 useNativeDriver: true,
             })
         ]).start(() => {
-            // Após animação, mostra o modal
+            // Após animação, decide o que fazer
             setTimeout(() => {
-                setModalVisible(true);
-            }, 500);
+                checkUserData();
+            }, 800);
         });
     }, []);
 
@@ -58,11 +59,18 @@ export default function Welcome({ navigation }) {
         try {
             const userData = await AsyncStorage.getItem('userData');
             if (userData) {
-                // Se já tem dados, vai direto para Home
-                navigation.replace('Home');
+                // Se já tem dados, vai direto para Home após animação
+                setJaTemDados(true);
+                setTimeout(() => {
+                    navigation.replace('Home');
+                }, 1500);
+            } else {
+                // Se não tem dados, mostra o modal
+                setModalVisible(true);
             }
         } catch (error) {
             console.log('Erro ao verificar dados:', error);
+            setModalVisible(true);
         }
     };
 
@@ -76,6 +84,7 @@ export default function Welcome({ navigation }) {
             const userData = {
                 nomeUsuario: nomeUsuario.trim(),
                 nomePinguim: nomePinguim.trim(),
+                avatar: '🐧', // Avatar padrão
                 dataRegistro: new Date().toISOString()
             };
             
@@ -87,7 +96,7 @@ export default function Welcome({ navigation }) {
             // Navega para Home após salvar
             setTimeout(() => {
                 navigation.replace('Home');
-            }, 300);
+            }, 500);
         } catch (error) {
             console.log('Erro ao salvar dados:', error);
             alert('Erro ao salvar. Tente novamente!');
@@ -119,13 +128,17 @@ export default function Welcome({ navigation }) {
                         }
                     ]}
                 >
-                    <Text style={styles.welcomeText}>Bem-vindo ao</Text>
+                    <Text style={styles.welcomeText}>
+                        {jaTemDados ? 'Bem-vindo de volta!' : 'Bem-vindo ao'}
+                    </Text>
                     <Text style={styles.appName}>Platlist</Text>
-                    <Text style={styles.subtitle}>Vamos começar sua jornada! 🎯</Text>
+                    <Text style={styles.subtitle}>
+                        {jaTemDados ? 'Carregando... 🎯' : 'Vamos começar sua jornada! 🎯'}
+                    </Text>
                 </Animated.View>
             </Animated.View>
 
-            {/* Modal de Cadastro */}
+            {/* Modal de Cadastro - Só aparece na primeira vez */}
             <Modal
                 animationType="slide"
                 transparent={true}
