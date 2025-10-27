@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Image, StyleSheet, TouchableOpacity, Text, ScrollView, SafeAreaView, StatusBar, Modal, TextInput } from "react-native";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Home() {
     // Estados do Mascote
@@ -54,6 +55,35 @@ export default function Home() {
     const [modalVisible, setModalVisible] = useState(false);
     const [novoObjetivoNome, setNovoObjetivoNome] = useState('');
     const [novoObjetivoIcone, setNovoObjetivoIcone] = useState('');
+
+    // Carrega os objetivos salvos ao iniciar
+    useEffect(() => {
+        carregarObjetivos();
+    }, []);
+
+    // Salva os objetivos sempre que mudam
+    useEffect(() => {
+        salvarObjetivos();
+    }, [objetivos]);
+
+    const carregarObjetivos = async () => {
+        try {
+            const objetivosSalvos = await AsyncStorage.getItem('objetivos');
+            if (objetivosSalvos) {
+                setObjetivos(JSON.parse(objetivosSalvos));
+            }
+        } catch (error) {
+            console.log('Erro ao carregar objetivos:', error);
+        }
+    };
+
+    const salvarObjetivos = async () => {
+        try {
+            await AsyncStorage.setItem('objetivos', JSON.stringify(objetivos));
+        } catch (error) {
+            console.log('Erro ao salvar objetivos:', error);
+        }
+    };
 
     const finalizadoObjetivos = objetivos.filter(objetivo => objetivo.finalizado).length;
     const totalObjetivos = objetivos.length;
