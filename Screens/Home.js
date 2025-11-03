@@ -1,85 +1,127 @@
 import React, { useState, useEffect } from 'react';
-import { View, Image, StyleSheet, TouchableOpacity, Text, ScrollView, SafeAreaView, StatusBar, Modal, TextInput } from "react-native";
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { View, Image, StyleSheet, TouchableOpacity, Text, ScrollView, SafeAreaView, StatusBar, Modal, TextInput, Alert, ActivityIndicator } from "react-native";
+import { auth, db } from '../controller';
+import { doc, getDoc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 
 export default function Home() {
     // Estados do Mascote
     const [imagemAtual, setImagemAtual] = useState('bicho');
+    const [loading, setLoading] = useState(true);
 
     const imagens = {
         bicho: require('../assets/bicho1.png'),
         bicho2: require('../assets/bicho2.png'),
     };
 
-    const trocarImagem = () => {
-        setImagemAtual(imagemAtual === 'bicho' ? 'bicho2' : 'bicho');
+    const trocarImagem = async () => {
+        const novaImagem = imagemAtual === 'bicho' ? 'bicho2' : 'bicho';
+        setImagemAtual(novaImagem);
+        
+        // Salva a imagem escolhida no Firestore
+        try {
+            const userId = auth.currentUser?.uid;
+            if (userId) {
+                await updateDoc(doc(db, "users", userId), {
+                    imagemMascote: novaImagem
+                });
+            }
+        } catch (error) {
+            console.log('Erro ao salvar imagem:', error);
+        }
     };
 
     // Estados das Tasks
-    const [objetivos, setObjetivos] = useState([
-        {
-            id: 1,
-            title: 'Usar fio-dental',
-            pontos: 5,
-            finalizado: true,
-            icon: '🦷',
-            color: '#8B5CF6'
-        },
-        {
-            id: 2,
-            title: 'Escovar os dentes',
-            pontos: 5,
-            finalizado: false,
-            progresso: '1 / 2',
-            icon: '🪥',
-            color: '#06B6D4'
-        },
-        {
-            id: 3,
-            title: 'Escrever no diário',
-            pontos: 5,
-            finalizado: true,
-            icon: '📖',
-            color: '#F97316'
-        },
-        {
-            id: 4,
-            title: 'Lavar o rosto',
-            pontos: 5,
-            finalizado: true,
-            icon: '🧼',
-            color: '#EC4899'
-        }
-    ]);
-
+    const [objetivos, setObjetivos] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
     const [novoObjetivoNome, setNovoObjetivoNome] = useState('');
     const [novoObjetivoIcone, setNovoObjetivoIcone] = useState('');
 
-    // Carrega os objetivos salvos ao iniciar
+    // Carrega os dados do usuário e objetivos do Firestore
     useEffect(() => {
-        carregarObjetivos();
+        const userId = auth.currentUser?.uid;
+        
+        if (!userId) {
+            Alert.alert("Erro", "Usuário não autenticado!");
+            return;
+        }
+
+        // Listener em tempo real para os dados do usuário
+        const unsubscribe = onSnapshot(doc(db, "users", userId), (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                
+                // Carrega a imagem do mascote
+                if (data.imagemMascote) {
+                    setImagemAtual(data.imagemMascote);
+                }
+                
+                // Carrega os objetivos
+                if (data.objetivos && Array.isArray(data.objetivos)) {
+                    setObjetivos(data.objetivos);
+                } else {
+                    // Define objetivos padrão se não houver nenhum
+                    const objetivosPadrao = [
+                        {
+                            id: 1,
+                            title: 'Usar fio-dental',
+                            pontos: 5,
+                            finalizado: false,
+                            icon: '🦷',
+                            color: '#8B5CF6'
+                        },
+                        {
+                            id: 2,
+                            title: 'Escovar os dentes',
+                            pontos: 5,
+                            finalizado: false,
+                            icon: '🪥',
+                            color: '#06B6D4'
+                        },
+                        {
+                            id: 3,
+                            title: 'Escrever no diário',
+                            pontos: 5,
+                            finalizado: false,
+                            icon: '📖',
+                            color: '#F97316'
+                        },
+                        {
+                            id: 4,
+                            title: 'Lavar o rosto',
+                            pontos: 5,
+                            finalizado: false,
+                            icon: '🧼',
+                            color: '#EC4899'
+                        }
+                    ];
+                    setObjetivos(objetivosPadrao);
+                    salvarObjetivosFirestore(objetivosPadrao);
+                }
+            }
+            setLoading(false);
+        }, (error) => {
+            console.log('Erro ao carregar dados:', error);
+            setLoading(false);
+        });
+
+        return () => unsubscribe();
     }, []);
 
-    // Salva os objetivos sempre que mudam
-    useEffect(() => {
-        salvarObjetivos();
-    }, [objetivos]);
-
-    const carregarObjetivos = async () => {
+    // Salva os objetivos no Firestore
+    const salvarObjetivosFirestore = async (novosObjetivos) => {
         try {
-            const objetivosSalvos = await AsyncStorage.getItem('objetivos');
-            if (objetivosSalvos) {
-                setObjetivos(JSON.parse(objetivosSalvos));
-            }
-        } catch (error) {
-            console.log('Erro ao carregar objetivos:', error);
-        }
-    };
+            const userId = auth.currentUser?.uid;
+            if (!userId) return;
 
-    const salvarObjetivos = async () => {
-        try {
-            await AsyncStorage.setItem('objetivos', JSON.stringify(objetivos));
+            const pontosGanhos = novosObjetivos
+                .filter(obj => obj.finalizado)
+                .reduce((total, obj) => total + obj.pontos, 0);
+
+            await updateDoc(doc(db, "users", userId), {
+                objetivos: novosObjetivos,
+                pontosTotais: pontosGanhos,
+                ultimaAtualizacao: new Date().toISOString()
+            });
         } catch (error) {
             console.log('Erro ao salvar objetivos:', error);
         }
@@ -91,21 +133,22 @@ export default function Home() {
     const pontosGanhos = objetivos.filter(objetivo => objetivo.finalizado).reduce((total, objetivo) => total + objetivo.pontos, 0);
 
     const toggleObjetivo = (objetivoId) => {
-        setObjetivos(prevObjetivos =>
-            prevObjetivos.map(objetivo =>
-                objetivo.id === objetivoId ? { ...objetivo, finalizado: !objetivo.finalizado } : objetivo
-            )
+        const novosObjetivos = objetivos.map(objetivo =>
+            objetivo.id === objetivoId ? { ...objetivo, finalizado: !objetivo.finalizado } : objetivo
         );
+        setObjetivos(novosObjetivos);
+        salvarObjetivosFirestore(novosObjetivos);
     };
 
     const deleteObjetivo = (objetivoId) => {
-        setObjetivos(prevObjetivos =>
-            prevObjetivos.filter(objetivo => objetivo.id !== objetivoId)
-        );
+        const novosObjetivos = objetivos.filter(objetivo => objetivo.id !== objetivoId);
+        setObjetivos(novosObjetivos);
+        salvarObjetivosFirestore(novosObjetivos);
     };
 
     const adicionarObjetivo = () => {
         if (novoObjetivoNome.trim() === '') {
+            Alert.alert("Atenção", "Digite um nome para o objetivo!");
             return;
         }
 
@@ -121,7 +164,9 @@ export default function Home() {
             color: corAleatoria
         };
 
-        setObjetivos(prevObjetivos => [...prevObjetivos, novoObjetivo]);
+        const novosObjetivos = [...objetivos, novoObjetivo];
+        setObjetivos(novosObjetivos);
+        salvarObjetivosFirestore(novosObjetivos);
         fecharModal();
     };
 
@@ -185,6 +230,15 @@ export default function Home() {
             </View>
         </TouchableOpacity>
     );
+
+    if (loading) {
+        return (
+            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color="#FFFFFF" />
+                <Text style={{ color: '#FFFFFF', marginTop: 10, fontSize: 16 }}>Carregando...</Text>
+            </View>
+        );
+    }
 
     return (
         <SafeAreaView style={styles.container}>
