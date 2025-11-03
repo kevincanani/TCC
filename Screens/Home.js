@@ -4,7 +4,6 @@ import { auth, db } from '../controller';
 import { doc, getDoc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 
 export default function Home() {
-    // Estados do Mascote
     const [imagemAtual, setImagemAtual] = useState('bicho');
     const [loading, setLoading] = useState(true);
 
@@ -17,7 +16,6 @@ export default function Home() {
         const novaImagem = imagemAtual === 'bicho' ? 'bicho2' : 'bicho';
         setImagemAtual(novaImagem);
         
-        // Salva a imagem escolhida no Firestore
         try {
             const userId = auth.currentUser?.uid;
             if (userId) {
@@ -30,13 +28,11 @@ export default function Home() {
         }
     };
 
-    // Estados das Tasks
     const [objetivos, setObjetivos] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
     const [novoObjetivoNome, setNovoObjetivoNome] = useState('');
     const [novoObjetivoIcone, setNovoObjetivoIcone] = useState('');
 
-    // Carrega os dados do usuário e objetivos do Firestore
     useEffect(() => {
         const userId = auth.currentUser?.uid;
         
@@ -107,7 +103,6 @@ export default function Home() {
         return () => unsubscribe();
     }, []);
 
-    // Salva os objetivos no Firestore
     const salvarObjetivosFirestore = async (novosObjetivos) => {
         try {
             const userId = auth.currentUser?.uid;
