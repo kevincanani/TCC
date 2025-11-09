@@ -5,26 +5,47 @@ import { doc, getDoc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 
 export default function Home() {
     const [imagemAtual, setImagemAtual] = useState('bicho');
-    const [loading, setLoading] = useState(true);
+    const [imagemMascoteAtual, setImagemMascoteAtual] = useState('bicho');
 
     const imagens = {
         bicho: require('../assets/bicho1.png'),
         bicho2: require('../assets/bicho2.png'),
+        // Imagens com acessórios
+        bicho_chapeu: require('../assets/1.png'),
+        bicho_oculos: require('../assets/2.png'),
+        bicho_gravata: require('../assets/4.png'),
     };
 
-    const trocarImagem = async () => {
-        const novaImagem = imagemAtual === 'bicho' ? 'bicho2' : 'bicho';
-        setImagemAtual(novaImagem);
+    useEffect(() => {
+        carregarImagemMascote();
         
+        // Atualiza imagem do mascote periodicamente
+        const interval = setInterval(carregarImagemMascote, 1000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const carregarImagemMascote = async () => {
         try {
-            const userId = auth.currentUser?.uid;
-            if (userId) {
-                await updateDoc(doc(db, "users", userId), {
-                    imagemMascote: novaImagem
-                });
+            const imagemSalva = await AsyncStorage.getItem('imagemMascoteAtual');
+            if (imagemSalva && imagens[imagemSalva]) {
+                setImagemMascoteAtual(imagemSalva);
+                setImagemAtual(imagemSalva);
+            } else {
+                // Se não tiver imagem salva, usa a padrão
+                setImagemMascoteAtual('bicho');
+                setImagemAtual('bicho');
             }
         } catch (error) {
-            console.log('Erro ao salvar imagem:', error);
+            console.log('Erro ao carregar imagem do mascote:', error);
+        }
+    };
+
+    const trocarImagem = () => {
+        // Alterna entre a imagem atual e bicho2
+        if (imagemAtual === imagemMascoteAtual) {
+            setImagemAtual('bicho2');
+        } else {
+            setImagemAtual(imagemMascoteAtual);
         }
     };
 
@@ -125,7 +146,32 @@ export default function Home() {
     const finalizadoObjetivos = objetivos.filter(objetivo => objetivo.finalizado).length;
     const totalObjetivos = objetivos.length;
     const remainingObjetivos = totalObjetivos - finalizadoObjetivos;
-    const pontosGanhos = objetivos.filter(objetivo => objetivo.finalizado).reduce((total, objetivo) => total + objetivo.pontos, 0);
+    
+    // Calcula pontos ganhos menos pontos gastos
+    const [pontosDisponiveis, setPontosDisponiveis] = useState(0);
+
+    useEffect(() => {
+        calcularPontosDisponiveis();
+        const interval = setInterval(calcularPontosDisponiveis, 1000);
+        return () => clearInterval(interval);
+    }, [objetivos]);
+
+    const calcularPontosDisponiveis = async () => {
+        try {
+            // Pontos ganhos das tasks
+            const pontosGanhos = objetivos.filter(objetivo => objetivo.finalizado).reduce((total, objetivo) => total + objetivo.pontos, 0);
+            
+            // Pontos gastos na loja
+            const gastosData = await AsyncStorage.getItem('pontosGastos');
+            const pontosGastos = gastosData ? parseInt(gastosData) : 0;
+            
+            // Pontos disponíveis
+            const disponiveis = pontosGanhos - pontosGastos;
+            setPontosDisponiveis(disponiveis);
+        } catch (error) {
+            console.log('Erro ao calcular pontos:', error);
+        }
+    };
 
     const toggleObjetivo = (objetivoId) => {
         const novosObjetivos = objetivos.map(objetivo =>
@@ -226,14 +272,16 @@ export default function Home() {
         </TouchableOpacity>
     );
 
-    if (loading) {
-        return (
-            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-                <ActivityIndicator size="large" color="#FFFFFF" />
-                <Text style={{ color: '#FFFFFF', marginTop: 10, fontSize: 16 }}>Carregando...</Text>
-            </View>
-        );
-    }
+    const getNomeMascote = () => {
+        const nomes = {
+            'bicho': 'Bicho 1',
+            'bicho2': 'Bicho 2',
+            'bicho_chapeu': 'Bicho Pirata 🏴‍☠️',
+            'bicho_oculos': 'Bicho Estiloso 🕶️',
+            'bicho_gravata': 'Bicho Chique 🎀'
+        };
+        return nomes[imagemAtual] || 'Bicho';
+    };
 
     return (
         <SafeAreaView style={styles.container}>
@@ -246,7 +294,7 @@ export default function Home() {
                         {remainingObjetivos} objetivos a serem finalizados hoje!
                     </Text>
                     <View style={styles.pontosHeader}>
-                        <Text style={styles.pontosHeaderText}>{pontosGanhos}</Text>
+                        <Text style={styles.pontosHeaderText}>{pontosDisponiveis}</Text>
                         <Text style={styles.pontosHeaderIcon}>⚡</Text>
                     </View>
                 </View>
@@ -269,12 +317,16 @@ export default function Home() {
                     </View>
                     
                     <Text style={styles.imageLabel}>
-                        {imagemAtual === 'bicho' ? 'Bicho 1' : 'Bicho 2'}
+                        {getNomeMascote()}
                     </Text>
                     
                     <TouchableOpacity style={styles.trocarButton} onPress={trocarImagem}>
                         <Text style={styles.buttonText}>TrocaBicho</Text>
                     </TouchableOpacity>
+                    
+                    <Text style={styles.dica}>
+                        💡 Compre acessórios na loja!
+                    </Text>
                 </View>
 
                 {/* Seção de Objetivos */}
@@ -460,12 +512,19 @@ const styles = StyleSheet.create({
         elevation: 4,
         borderWidth: 1,
         borderColor: '#66BB6A',
+        marginBottom: 10,
     },
     buttonText: {
         color: '#FFFFFF',
         fontSize: 16,
         fontWeight: 'bold',
         textAlign: 'center',
+    },
+    dica: {
+        fontSize: 12,
+        color: '#666',
+        fontStyle: 'italic',
+        marginTop: 5,
     },
     // Estilos dos Objetivos
     objetivosSection: {
