@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { auth, db } from '../controller';
+import { doc, updateDoc, setDoc, getDoc } from 'firebase/firestore';
 
 export default function Welcome({ navigation, route }) {
     const [modalVisible, setModalVisible] = useState(false);
@@ -96,6 +98,12 @@ export default function Welcome({ navigation, route }) {
         }
 
         try {
+            const userId = auth.currentUser?.uid;
+            if (!userId) {
+                alert('Erro: usuário não autenticado!');
+                return;
+            }
+
             const userData = {
                 nomeUsuario: nomeUsuario.trim(),
                 nomePinguim: nomePinguim.trim(),
@@ -103,7 +111,35 @@ export default function Welcome({ navigation, route }) {
                 dataRegistro: new Date().toISOString()
             };
             
+            // Salva no AsyncStorage (para compatibilidade)
             await AsyncStorage.setItem('userData', JSON.stringify(userData));
+            
+            // Salva no Firestore
+            const userDocRef = doc(db, "users", userId);
+            const docSnap = await getDoc(userDocRef);
+            
+            if (docSnap.exists()) {
+                // Atualiza documento existente
+                await updateDoc(userDocRef, {
+                    nomeUsuario: userData.nomeUsuario,
+                    nomePinguim: userData.nomePinguim,
+                    avatar: userData.avatar,
+                    ultimaAtualizacao: new Date().toISOString()
+                });
+                console.log('Welcome - Dados atualizados no Firestore');
+            } else {
+                // Cria documento se não existir
+                await setDoc(userDocRef, {
+                    email: auth.currentUser?.email || '',
+                    ...userData,
+                    objetivos: [],
+                    pontosTotais: 0,
+                    pontosGastos: 0,
+                    itensComprados: [],
+                    imagemMascote: 'bicho'
+                }, { merge: true });
+                console.log('Welcome - Documento criado no Firestore');
+            }
             
             // Fecha modal com animação
             setModalVisible(false);

@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, Alert } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { auth, db } from '../controller';
+import { doc, onSnapshot, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 
 export default function Shop() {
   const [pontosUsuario, setPontosUsuario] = useState(0);
@@ -10,97 +13,346 @@ export default function Shop() {
   const [shopItems] = useState([
     {
       id: 1,
-      name: 'Chapéu Pirata',
-      categoria: 'Acessórios',
-      price: 25,
-      icon: '🏴‍☠️',
-      color: '#8B5CF6',
-      imagemMascote: 'bicho_chapeu'
-    },
-    {
-      id: 2,
-      name: 'Óculos de Sol',
+      name: 'Óculos de Festa',
       categoria: 'Acessórios',
       price: 15,
-      icon: '🕶️',
-      color: '#06B6D4',
+      icon: '👓',
+      color: '#8B5CF6',
       imagemMascote: 'bicho_oculos'
     },
     {
-      id: 3,
-      name: 'Gravata Borboleta',
+      id: 2,
+      name: 'Chapéu de Aniversário',
       categoria: 'Acessórios',
       price: 20,
-      icon: '🎀',
+      icon: '🎉',
+      color: '#06B6D4',
+      imagemMascote: 'bicho_chapeu'
+    },
+    {
+      id: 3,
+      name: 'Cachecol de Inverno',
+      categoria: 'Acessórios',
+      price: 25,
+      icon: '🧣',
       color: '#F97316',
       imagemMascote: 'bicho_gravata'
     },
   ]);
 
-  useEffect(() => {
-    carregarDados();
-    
-    // Atualiza dados periodicamente
-    const interval = setInterval(carregarDados, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const carregarDados = async () => {
+  const calcularPontosDisponiveis = async (objetivos) => {
     try {
-      // Carrega pontos totais das tasks
-      const tasksData = await AsyncStorage.getItem('objetivos');
-      let pontosTotal = 0;
-      if (tasksData) {
-        const tasks = JSON.parse(tasksData);
-        pontosTotal = tasks.filter(t => t.finalizado).reduce((sum, t) => sum + (t.pontos || 5), 0);
+      // Pontos ganhos das tasks do Firestore
+      const pontosGanhos = objetivos
+        .filter(obj => obj.finalizado)
+        .reduce((total, obj) => total + (obj.pontos || 5), 0);
+      
+      console.log('Shop - Pontos ganhos calculados:', pontosGanhos);
+      
+      // Pontos gastos - tenta carregar do Firestore primeiro
+      let pontosGastos = 0;
+      const userId = auth.currentUser?.uid;
+      if (userId) {
+        try {
+          const docRef = doc(db, "users", userId);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            pontosGastos = data.pontosGastos || 0;
+            console.log('Shop - Pontos gastos carregados do Firestore:', pontosGastos);
+          }
+        } catch (error) {
+          console.log('Shop - Erro ao carregar pontos gastos do Firestore:', error);
+        }
       }
-
-      // Carrega pontos gastos
-      const gastosData = await AsyncStorage.getItem('pontosGastos');
-      const gastos = gastosData ? parseInt(gastosData) : 0;
-      setPontosGastos(gastos);
-
-      // Calcula pontos disponíveis
-      const pontosDisponiveis = pontosTotal - gastos;
-      setPontosUsuario(pontosDisponiveis);
-
-      // Carrega itens comprados
-      const itensData = await AsyncStorage.getItem('itensComprados');
-      if (itensData) {
-        setItensComprados(JSON.parse(itensData));
+      
+      // Fallback: carrega do AsyncStorage se não encontrou no Firestore
+      if (pontosGastos === 0) {
+        const gastosData = await AsyncStorage.getItem('pontosGastos');
+        pontosGastos = gastosData ? parseInt(gastosData) : 0;
+        console.log('Shop - Pontos gastos carregados do AsyncStorage:', pontosGastos);
       }
+      
+      // Pontos disponíveis
+      const pontosDisponiveis = pontosGanhos - pontosGastos;
+      console.log('Shop - Pontos disponíveis:', pontosDisponiveis);
+      setPontosUsuario(Math.max(0, pontosDisponiveis)); // Garante que não seja negativo
     } catch (error) {
-      console.log('Erro ao carregar dados:', error);
+      console.log('Shop - Erro ao calcular pontos disponíveis:', error);
     }
   };
 
+  const carregarPontosGastos = async () => {
+    try {
+      const userId = auth.currentUser?.uid;
+      if (userId) {
+        // Tenta carregar do Firestore primeiro
+        const userDocRef = doc(db, "users", userId);
+        const docSnap = await getDoc(userDocRef);
+        
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.pontosGastos !== undefined) {
+            const gastos = data.pontosGastos || 0;
+            setPontosGastos(gastos);
+            console.log('Shop - Pontos gastos carregados do Firestore:', gastos);
+            // Sincroniza com AsyncStorage
+            await AsyncStorage.setItem('pontosGastos', gastos.toString());
+            return;
+          }
+        }
+      }
+      
+      // Fallback: carrega do AsyncStorage
+      const gastosData = await AsyncStorage.getItem('pontosGastos');
+      const gastos = gastosData ? parseInt(gastosData) : 0;
+      setPontosGastos(gastos);
+      console.log('Shop - Pontos gastos carregados do AsyncStorage:', gastos);
+    } catch (error) {
+      console.log('Shop - Erro ao carregar pontos gastos:', error);
+    }
+  };
+
+  const carregarItensComprados = async () => {
+    try {
+      const userId = auth.currentUser?.uid;
+      if (userId) {
+        // Tenta carregar do Firestore primeiro
+        const userDocRef = doc(db, "users", userId);
+        const docSnap = await getDoc(userDocRef);
+        
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.itensComprados && Array.isArray(data.itensComprados)) {
+            setItensComprados(data.itensComprados);
+            console.log('Shop - Itens comprados carregados do Firestore:', data.itensComprados);
+            // Sincroniza com AsyncStorage
+            await AsyncStorage.setItem('itensComprados', JSON.stringify(data.itensComprados));
+            return;
+          }
+        }
+      }
+      
+      // Fallback: carrega do AsyncStorage
+      const itensData = await AsyncStorage.getItem('itensComprados');
+      if (itensData) {
+        const itens = JSON.parse(itensData);
+        setItensComprados(itens);
+        console.log('Shop - Itens comprados carregados do AsyncStorage:', itens);
+      }
+    } catch (error) {
+      console.log('Shop - Erro ao carregar itens comprados:', error);
+    }
+  };
+
+  useEffect(() => {
+    carregarItensComprados();
+    
+    // Carrega dados iniciais do Firestore
+    const carregarDadosIniciais = async () => {
+      const userId = auth.currentUser?.uid;
+      if (userId) {
+        try {
+          const docRef = doc(db, "users", userId);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            const objetivos = data.objetivos || [];
+            console.log('Shop - Dados iniciais carregados:', objetivos.length, 'objetivos');
+            calcularPontosDisponiveis(objetivos);
+            
+            // Carrega itens comprados
+            if (data.itensComprados && Array.isArray(data.itensComprados)) {
+              setItensComprados(data.itensComprados);
+              console.log('Shop - Itens comprados carregados:', data.itensComprados);
+            }
+            
+            // Carrega pontos gastos
+            if (data.pontosGastos !== undefined) {
+              setPontosGastos(data.pontosGastos || 0);
+              console.log('Shop - Pontos gastos carregados:', data.pontosGastos);
+            }
+          }
+        } catch (error) {
+          console.log('Shop - Erro ao carregar dados iniciais:', error);
+        }
+      }
+    };
+    
+    carregarDadosIniciais();
+    
+    // Atualiza pontos gastos periodicamente
+    const interval = setInterval(() => {
+      carregarPontosGastos();
+    }, 1000);
+    
+    return () => {
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Listener do Firestore - recria quando a tela recebe foco
+  useFocusEffect(
+    React.useCallback(() => {
+      const userId = auth.currentUser?.uid;
+      
+      if (!userId) {
+        console.log('Shop - userId não disponível');
+        return;
+      }
+
+      console.log('Shop - Configurando listener do Firestore para userId:', userId);
+
+      // Listener em tempo real para os objetivos do Firestore
+      const unsubscribe = onSnapshot(doc(db, "users", userId), (docSnap) => {
+        console.log('Shop - Firestore atualizado:', docSnap.exists());
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          const objetivos = data.objetivos || [];
+          console.log('Shop - Objetivos recebidos:', objetivos.length, 'objetivos');
+          console.log('Shop - Objetivos finalizados:', objetivos.filter(obj => obj.finalizado).length);
+          calcularPontosDisponiveis(objetivos);
+          
+          // Atualiza itens comprados do Firestore
+          if (data.itensComprados && Array.isArray(data.itensComprados)) {
+            setItensComprados(data.itensComprados);
+            console.log('Shop - Itens comprados atualizados do Firestore:', data.itensComprados);
+          }
+          
+          // Atualiza pontos gastos do Firestore
+          if (data.pontosGastos !== undefined) {
+            setPontosGastos(data.pontosGastos || 0);
+            console.log('Shop - Pontos gastos atualizados do Firestore:', data.pontosGastos);
+          }
+        } else {
+          console.log('Shop - Documento não existe no Firestore');
+        }
+      }, (error) => {
+        console.log('Shop - Erro ao carregar dados do Firestore:', error);
+      });
+
+      return () => {
+        console.log('Shop - Removendo listener do Firestore');
+        unsubscribe();
+      };
+    }, [])
+  );
+
+
   const salvarItensComprados = async (novosItens) => {
     try {
+      // Salva no AsyncStorage (para compatibilidade)
       await AsyncStorage.setItem('itensComprados', JSON.stringify(novosItens));
+      
+      // Salva no Firestore
+      const userId = auth.currentUser?.uid;
+      if (userId) {
+        const userDocRef = doc(db, "users", userId);
+        const docSnap = await getDoc(userDocRef);
+        
+        if (docSnap.exists()) {
+          await updateDoc(userDocRef, {
+            itensComprados: novosItens,
+            ultimaAtualizacao: new Date().toISOString()
+          });
+          console.log('Shop - Itens comprados salvos no Firestore:', novosItens);
+        } else {
+          await setDoc(userDocRef, {
+            itensComprados: novosItens,
+            ultimaAtualizacao: new Date().toISOString()
+          }, { merge: true });
+          console.log('Shop - Documento criado com itens comprados');
+        }
+      }
     } catch (error) {
-      console.log('Erro ao salvar itens:', error);
+      console.log('Shop - Erro ao salvar itens:', error);
     }
   };
 
   const salvarPontosGastos = async (novoTotal) => {
     try {
+      // Salva no AsyncStorage (para compatibilidade)
       await AsyncStorage.setItem('pontosGastos', novoTotal.toString());
       setPontosGastos(novoTotal);
+      
+      // Salva no Firestore
+      const userId = auth.currentUser?.uid;
+      if (userId) {
+        const userDocRef = doc(db, "users", userId);
+        const docSnap = await getDoc(userDocRef);
+        
+        if (docSnap.exists()) {
+          await updateDoc(userDocRef, {
+            pontosGastos: novoTotal,
+            ultimaAtualizacao: new Date().toISOString()
+          });
+          console.log('Shop - Pontos gastos salvos no Firestore:', novoTotal);
+        } else {
+          await setDoc(userDocRef, {
+            pontosGastos: novoTotal,
+            ultimaAtualizacao: new Date().toISOString()
+          }, { merge: true });
+          console.log('Shop - Documento criado com pontos gastos');
+        }
+      }
     } catch (error) {
-      console.log('Erro ao salvar pontos gastos:', error);
+      console.log('Shop - Erro ao salvar pontos gastos:', error);
     }
   };
 
   const salvarImagemMascote = async (imagemId) => {
     try {
-      await AsyncStorage.setItem('imagemMascoteAtual', imagemId);
-      console.log('Imagem do mascote salva:', imagemId);
+      const imagemIdLimpo = imagemId.trim();
+      // Salva no AsyncStorage (para compatibilidade)
+      await AsyncStorage.setItem('imagemMascoteAtual', imagemIdLimpo);
+      console.log('Shop - Imagem do mascote salva no AsyncStorage:', imagemIdLimpo);
+      
+      // Salva no Firestore
+      const userId = auth.currentUser?.uid;
+      if (userId) {
+        const userDocRef = doc(db, "users", userId);
+        const docSnap = await getDoc(userDocRef);
+        
+        if (docSnap.exists()) {
+          await updateDoc(userDocRef, {
+            imagemMascote: imagemIdLimpo,
+            ultimaAtualizacao: new Date().toISOString()
+          });
+          console.log('Shop - Imagem do mascote salva no Firestore:', imagemIdLimpo);
+        } else {
+          await setDoc(userDocRef, {
+            imagemMascote: imagemIdLimpo,
+            ultimaAtualizacao: new Date().toISOString()
+          }, { merge: true });
+          console.log('Shop - Documento criado com imagem do mascote');
+        }
+      }
     } catch (error) {
-      console.log('Erro ao salvar imagem do mascote:', error);
+      console.log('Shop - Erro ao salvar imagem do mascote:', error);
+    }
+  };
+
+  const recarregarPontos = async () => {
+    const userId = auth.currentUser?.uid;
+    if (userId) {
+      try {
+        const docRef = doc(db, "users", userId);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          const objetivos = data.objetivos || [];
+          calcularPontosDisponiveis(objetivos);
+        }
+      } catch (error) {
+        console.log('Shop - Erro ao recarregar pontos:', error);
+      }
     }
   };
 
   const purchaseItem = async (item) => {
+    console.log('Shop - Tentando comprar item:', item.name, 'por', item.price, 'pontos');
+    console.log('Shop - Pontos disponíveis:', pontosUsuario);
+    
     // Verifica se já foi comprado
     if (itensComprados.includes(item.id)) {
       Alert.alert('Já comprado!', 'Você já possui este item! 😊');
@@ -129,22 +381,28 @@ export default function Shop() {
           text: 'Comprar',
           onPress: async () => {
             try {
+              console.log('Shop - Processando compra...');
+              
               // Adiciona item aos comprados
               const novosItensComprados = [...itensComprados, item.id];
               setItensComprados(novosItensComprados);
               await salvarItensComprados(novosItensComprados);
+              console.log('Shop - Item adicionado aos comprados');
 
               // Desconta os pontos
               const novosPontosGastos = pontosGastos + item.price;
               await salvarPontosGastos(novosPontosGastos);
+              console.log('Shop - Pontos gastos atualizados:', novosPontosGastos);
               
               // Atualiza pontos localmente
               const novoPontoDisponivel = pontosUsuario - item.price;
               setPontosUsuario(novoPontoDisponivel);
+              console.log('Shop - Pontos disponíveis atualizados:', novoPontoDisponivel);
 
               // Salva a imagem do mascote (se o item tiver)
               if (item.imagemMascote) {
                 await salvarImagemMascote(item.imagemMascote);
+                console.log('Shop - Imagem do mascote salva:', item.imagemMascote);
               }
 
               // Mostra mensagem de sucesso
@@ -153,10 +411,13 @@ export default function Shop() {
                 `Você comprou ${item.name}!\n\nPontos restantes: ${novoPontoDisponivel} ⚡\n\n${item.imagemMascote ? 'Volte para a tela inicial para ver seu mascote com o novo acessório!' : ''}`
               );
 
-              // Recarrega dados para garantir sincronização
-              setTimeout(() => carregarDados(), 500);
+              // Recarrega pontos do Firestore para garantir sincronização
+              setTimeout(() => {
+                recarregarPontos();
+                carregarPontosGastos();
+              }, 500);
             } catch (error) {
-              console.log('Erro ao comprar item:', error);
+              console.log('Shop - Erro ao comprar item:', error);
               Alert.alert('Erro', 'Não foi possível comprar o item. Tente novamente!');
             }
           }

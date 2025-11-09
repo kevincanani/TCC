@@ -1,22 +1,43 @@
 import { StyleSheet, View, Text, TextInput, TouchableOpacity, Image } from "react-native"
 import { useState } from 'react';
-import { auth } from "../controller";
+import { auth, db } from "../controller";
 import { createUserWithEmailAndPassword } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
 
 export default function Cadastro({ navigation }) {
 
     const [email, setEmail] = useState("");
     const [senha, setSenha] = useState("");
 
-    const RegistroUsuario = () => {
-        createUserWithEmailAndPassword(auth, email, senha)
-            .then((userCredential) => {
-                console.log("Usuário cadastrado!", userCredential.user.email)
-                navigation.navigate('Login')
-            })
-            .catch((error) => {
-                console.log('error', error.message);
+    const RegistroUsuario = async () => {
+        try {
+            const userCredential = await createUserWithEmailAndPassword(auth, email, senha);
+            const user = userCredential.user;
+            
+            console.log("Usuário cadastrado no Authentication!", user.email);
+            
+            // Cria documento inicial no Firestore
+            const userDocRef = doc(db, "users", user.uid);
+            await setDoc(userDocRef, {
+                email: user.email,
+                nomeUsuario: '',
+                nomePinguim: '',
+                avatar: '🐧',
+                objetivos: [],
+                pontosTotais: 0,
+                pontosGastos: 0,
+                itensComprados: [],
+                imagemMascote: 'bicho',
+                dataRegistro: new Date().toISOString(),
+                ultimaAtualizacao: new Date().toISOString()
             });
+            
+            console.log("Documento criado no Firestore para usuário:", user.uid);
+            navigation.navigate('Login');
+        } catch (error) {
+            console.log('Erro ao cadastrar:', error.message);
+            alert('Erro ao cadastrar: ' + error.message);
+        }
     }
 
     return (

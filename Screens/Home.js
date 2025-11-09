@@ -1,53 +1,104 @@
 import React, { useState, useEffect } from 'react';
 import { View, Image, StyleSheet, TouchableOpacity, Text, ScrollView, SafeAreaView, StatusBar, Modal, TextInput, Alert, ActivityIndicator } from "react-native";
+import { useFocusEffect } from '@react-navigation/native';
 import { auth, db } from '../controller';
 import { doc, getDoc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Home() {
     const [imagemAtual, setImagemAtual] = useState('bicho');
     const [imagemMascoteAtual, setImagemMascoteAtual] = useState('bicho');
+    const [nomePinguim, setNomePinguim] = useState('Pinguim');
 
     const imagens = {
-        bicho: require('../assets/bicho1.png'),
+        bicho: require('../assets/mascote.png'),
         bicho2: require('../assets/bicho2.png'),
         // Imagens com acessórios
-        bicho_chapeu: require('../assets/1.png'),
-        bicho_oculos: require('../assets/2.png'),
-        bicho_gravata: require('../assets/4.png'),
+        bicho_chapeu: require('../assets/mascote_chapeu.png'),
+        bicho_oculos: require('../assets/mascote_oculos.png'),
+        bicho_gravata: require('../assets/mascote_cachecol.png'),
     };
-
-    useEffect(() => {
-        carregarImagemMascote();
-        
-        // Atualiza imagem do mascote periodicamente
-        const interval = setInterval(carregarImagemMascote, 1000);
-        return () => clearInterval(interval);
-    }, []);
 
     const carregarImagemMascote = async () => {
         try {
+            const userId = auth.currentUser?.uid;
+            if (userId) {
+                // Tenta carregar do Firestore PRIMEIRO (fonte de verdade)
+                const userDocRef = doc(db, "users", userId);
+                const docSnap = await getDoc(userDocRef);
+                
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    if (data.imagemMascote) {
+                        const imagemLimpa = data.imagemMascote.trim();
+                        console.log('Home - Imagem carregada do Firestore:', imagemLimpa);
+                        
+                        if (imagens[imagemLimpa]) {
+                            console.log('Home - Aplicando imagem:', imagemLimpa);
+                            setImagemMascoteAtual(imagemLimpa);
+                            setImagemAtual(imagemLimpa);
+                            // Sincroniza com AsyncStorage
+                            await AsyncStorage.setItem('imagemMascoteAtual', imagemLimpa);
+                            return;
+                        }
+                    }
+                }
+            }
+            
+            // Fallback: carrega do AsyncStorage
             const imagemSalva = await AsyncStorage.getItem('imagemMascoteAtual');
-            if (imagemSalva && imagens[imagemSalva]) {
-                setImagemMascoteAtual(imagemSalva);
-                setImagemAtual(imagemSalva);
+            console.log('Home - Imagem carregada do AsyncStorage:', imagemSalva);
+            
+            if (imagemSalva) {
+                const imagemLimpa = imagemSalva.trim();
+                console.log('Home - Imagem limpa:', imagemLimpa);
+                
+                if (imagens[imagemLimpa]) {
+                    console.log('Home - Aplicando imagem:', imagemLimpa);
+                    setImagemMascoteAtual(imagemLimpa);
+                    setImagemAtual(imagemLimpa);
+                } else {
+                    console.log('Home - Imagem não encontrada. Usando padrão.');
+                    setImagemMascoteAtual('bicho');
+                    setImagemAtual('bicho');
+                }
             } else {
-                // Se não tiver imagem salva, usa a padrão
+                console.log('Home - Nenhuma imagem salva. Usando imagem padrão');
                 setImagemMascoteAtual('bicho');
                 setImagemAtual('bicho');
             }
         } catch (error) {
-            console.log('Erro ao carregar imagem do mascote:', error);
+            console.log('Home - Erro ao carregar imagem do mascote:', error);
         }
     };
 
-    const trocarImagem = () => {
-        // Alterna entre a imagem atual e bicho2
-        if (imagemAtual === imagemMascoteAtual) {
-            setImagemAtual('bicho2');
-        } else {
-            setImagemAtual(imagemMascoteAtual);
+    const carregarNomeMascote = async () => {
+        try {
+            const userData = await AsyncStorage.getItem('userData');
+            if (userData) {
+                const dados = JSON.parse(userData);
+                if (dados.nomePinguim) {
+                    setNomePinguim(dados.nomePinguim);
+                }
+            }
+        } catch (error) {
+            console.log('Erro ao carregar nome do mascote:', error);
         }
     };
+
+    useEffect(() => {
+        carregarImagemMascote();
+        carregarNomeMascote();
+    }, []);
+
+    // Atualiza a imagem quando a tela recebe foco (quando o usuário volta da Shop)
+    useFocusEffect(
+        React.useCallback(() => {
+            console.log('Home - Tela recebeu foco, recarregando imagem...');
+            carregarImagemMascote();
+            carregarNomeMascote();
+        }, [])
+    );
 
     const [objetivos, setObjetivos] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
@@ -67,9 +118,16 @@ export default function Home() {
             if (docSnap.exists()) {
                 const data = docSnap.data();
                 
-                // Carrega a imagem do mascote
+                // CORREÇÃO: Carrega a imagem do mascote do Firestore em tempo real
                 if (data.imagemMascote) {
-                    setImagemAtual(data.imagemMascote);
+                    const imagemLimpa = data.imagemMascote.trim();
+                    console.log('Home - Firestore atualizado com nova imagem:', imagemLimpa);
+                    if (imagens[imagemLimpa]) {
+                        setImagemAtual(imagemLimpa);
+                        setImagemMascoteAtual(imagemLimpa);
+                        // Sincroniza com AsyncStorage
+                        AsyncStorage.setItem('imagemMascoteAtual', imagemLimpa);
+                    }
                 }
                 
                 // Carrega os objetivos
@@ -115,10 +173,8 @@ export default function Home() {
                     salvarObjetivosFirestore(objetivosPadrao);
                 }
             }
-            setLoading(false);
         }, (error) => {
-            console.log('Erro ao carregar dados:', error);
-            setLoading(false);
+            console.log('Home - Erro ao carregar dados:', error);
         });
 
         return () => unsubscribe();
@@ -127,19 +183,43 @@ export default function Home() {
     const salvarObjetivosFirestore = async (novosObjetivos) => {
         try {
             const userId = auth.currentUser?.uid;
-            if (!userId) return;
+            if (!userId) {
+                console.log('Home - Erro: userId não disponível');
+                return;
+            }
 
             const pontosGanhos = novosObjetivos
                 .filter(obj => obj.finalizado)
                 .reduce((total, obj) => total + obj.pontos, 0);
 
-            await updateDoc(doc(db, "users", userId), {
+            console.log('Home - Salvando objetivos no Firestore:', novosObjetivos.length, 'objetivos');
+            console.log('Home - Pontos ganhos:', pontosGanhos);
+
+            const docRef = doc(db, "users", userId);
+            
+            // Verifica se o documento existe
+            const docSnap = await getDoc(docRef);
+            
+            const dadosParaSalvar = {
                 objetivos: novosObjetivos,
                 pontosTotais: pontosGanhos,
                 ultimaAtualizacao: new Date().toISOString()
-            });
+            };
+
+            if (docSnap.exists()) {
+                // Se existe, atualiza
+                await updateDoc(docRef, dadosParaSalvar);
+                console.log('Home - Objetivos atualizados no Firestore');
+            } else {
+                // Se não existe, cria com merge
+                await setDoc(docRef, dadosParaSalvar, { merge: true });
+                console.log('Home - Documento criado no Firestore');
+            }
+            
+            console.log('Home - Objetivos salvos com sucesso no Firestore');
         } catch (error) {
-            console.log('Erro ao salvar objetivos:', error);
+            console.log('Home - Erro ao salvar objetivos:', error);
+            console.log('Home - Detalhes do erro:', error.message);
         }
     };
 
@@ -161,15 +241,35 @@ export default function Home() {
             // Pontos ganhos das tasks
             const pontosGanhos = objetivos.filter(objetivo => objetivo.finalizado).reduce((total, objetivo) => total + objetivo.pontos, 0);
             
-            // Pontos gastos na loja
-            const gastosData = await AsyncStorage.getItem('pontosGastos');
-            const pontosGastos = gastosData ? parseInt(gastosData) : 0;
+            // Pontos gastos - tenta carregar do Firestore primeiro
+            let pontosGastos = 0;
+            const userId = auth.currentUser?.uid;
+            if (userId) {
+                try {
+                    const docRef = doc(db, "users", userId);
+                    const docSnap = await getDoc(docRef);
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        pontosGastos = data.pontosGastos || 0;
+                        console.log('Home - Pontos gastos carregados do Firestore:', pontosGastos);
+                    }
+                } catch (error) {
+                    console.log('Home - Erro ao carregar pontos gastos do Firestore:', error);
+                }
+            }
+            
+            // Fallback: carrega do AsyncStorage se não encontrou no Firestore
+            if (pontosGastos === 0) {
+                const gastosData = await AsyncStorage.getItem('pontosGastos');
+                pontosGastos = gastosData ? parseInt(gastosData) : 0;
+            }
             
             // Pontos disponíveis
             const disponiveis = pontosGanhos - pontosGastos;
             setPontosDisponiveis(disponiveis);
+            console.log('Home - Pontos disponíveis calculados:', disponiveis, '(ganhos:', pontosGanhos, '- gastos:', pontosGastos, ')');
         } catch (error) {
-            console.log('Erro ao calcular pontos:', error);
+            console.log('Home - Erro ao calcular pontos:', error);
         }
     };
 
@@ -272,17 +372,6 @@ export default function Home() {
         </TouchableOpacity>
     );
 
-    const getNomeMascote = () => {
-        const nomes = {
-            'bicho': 'Bicho 1',
-            'bicho2': 'Bicho 2',
-            'bicho_chapeu': 'Bicho Pirata 🏴‍☠️',
-            'bicho_oculos': 'Bicho Estiloso 🕶️',
-            'bicho_gravata': 'Bicho Chique 🎀'
-        };
-        return nomes[imagemAtual] || 'Bicho';
-    };
-
     return (
         <SafeAreaView style={styles.container}>
             <StatusBar backgroundColor="#4CAF50" barStyle="light-content" />
@@ -307,22 +396,22 @@ export default function Home() {
             >
                 {/* Card do Mascote */}
                 <View style={styles.mascoteCard}>
-                    <Text style={styles.mascoteTitle}>Mascote</Text>
-                    
                     <View style={styles.imageContainer}>
-                        <Image
-                            style={styles.img}
-                            source={imagens[imagemAtual]}
-                        />
+                        {imagens[imagemAtual] ? (
+                            <Image
+                                style={styles.img}
+                                source={imagens[imagemAtual]}
+                            />
+                        ) : (
+                            <Text style={styles.errorText}>
+                                Erro ao carregar imagem: {imagemAtual}
+                            </Text>
+                        )}
                     </View>
                     
                     <Text style={styles.imageLabel}>
-                        {getNomeMascote()}
+                        🧊 {nomePinguim}
                     </Text>
-                    
-                    <TouchableOpacity style={styles.trocarButton} onPress={trocarImagem}>
-                        <Text style={styles.buttonText}>TrocaBicho</Text>
-                    </TouchableOpacity>
                     
                     <Text style={styles.dica}>
                         💡 Compre acessórios na loja!
@@ -496,6 +585,12 @@ const styles = StyleSheet.create({
         color: '#388E3C',
         fontWeight: '600',
         marginBottom: 15,
+    },
+    errorText: {
+        fontSize: 12,
+        color: '#EF4444',
+        fontWeight: '600',
+        textAlign: 'center',
     },
     trocarButton: {
         backgroundColor: '#4CAF50',

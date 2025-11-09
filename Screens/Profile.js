@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, TextInput, Modal } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { auth, db } from '../controller';
+import { doc, onSnapshot, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 
 export default function Profile() {
   const [nomeUsuario, setNomeUsuario] = useState('Usuário');
@@ -15,49 +18,192 @@ export default function Profile() {
   const [totalObjetivos, setTotalObjetivos] = useState(0);
   const [objetivosFinalizados, setObjetivosFinalizados] = useState(0);
   const [pontosGanhos, setPontosGanhos] = useState(0);
+  const [pontosDisponiveis, setPontosDisponiveis] = useState(0);
 
   const avatarsDisponiveis = ['🐧', '🦈', '🦊', '🐨', '🐼', '🦁', '🐯', '🐸', '🦄', '🐱', '🐶', '🐻'];
 
+  const calcularPontosDisponiveis = async (objetivos) => {
+    try {
+      // Pontos ganhos das tasks do Firestore
+      const pontosGanhos = objetivos
+        .filter(obj => obj.finalizado)
+        .reduce((total, obj) => total + (obj.pontos || 5), 0);
+      
+      console.log('Profile - Pontos ganhos calculados:', pontosGanhos);
+      
+      // Pontos gastos - tenta carregar do Firestore primeiro
+      let pontosGastos = 0;
+      const userId = auth.currentUser?.uid;
+      if (userId) {
+        try {
+          const docRef = doc(db, "users", userId);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            pontosGastos = data.pontosGastos || 0;
+            console.log('Profile - Pontos gastos carregados do Firestore:', pontosGastos);
+          }
+        } catch (error) {
+          console.log('Profile - Erro ao carregar pontos gastos do Firestore:', error);
+        }
+      }
+      
+      // Fallback: carrega do AsyncStorage se não encontrou no Firestore
+      if (pontosGastos === 0) {
+        const gastosData = await AsyncStorage.getItem('pontosGastos');
+        pontosGastos = gastosData ? parseInt(gastosData) : 0;
+        console.log('Profile - Pontos gastos carregados do AsyncStorage:', pontosGastos);
+      }
+      
+      // Pontos disponíveis
+      const pontosDisponiveis = pontosGanhos - pontosGastos;
+      console.log('Profile - Pontos disponíveis:', pontosDisponiveis);
+      setPontosDisponiveis(Math.max(0, pontosDisponiveis)); // Garante que não seja negativo
+    } catch (error) {
+      console.log('Profile - Erro ao calcular pontos disponíveis:', error);
+    }
+  };
+
+  const carregarTasks = (objetivos) => {
+    try {
+      const total = objetivos.length;
+      const finalizados = objetivos.filter(t => t.finalizado).length;
+      const pontos = objetivos.filter(t => t.finalizado).reduce((sum, t) => sum + (t.pontos || 5), 0);
+      
+      setTotalObjetivos(total);
+      setObjetivosFinalizados(finalizados);
+      setPontosGanhos(pontos);
+    } catch (error) {
+      console.log('Erro ao carregar tasks:', error);
+    }
+  };
+
   useEffect(() => {
     carregarDados();
-    carregarTasks();
     
-    // Atualiza tasks periodicamente
-    const interval = setInterval(carregarTasks, 1000);
-    return () => clearInterval(interval);
+    // Carrega dados iniciais do Firestore
+    const carregarDadosIniciais = async () => {
+      const userId = auth.currentUser?.uid;
+      if (userId) {
+        try {
+          const docRef = doc(db, "users", userId);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            const objetivos = data.objetivos || [];
+            console.log('Profile - Dados iniciais carregados:', objetivos.length, 'objetivos');
+            carregarTasks(objetivos);
+            calcularPontosDisponiveis(objetivos);
+          }
+        } catch (error) {
+          console.log('Profile - Erro ao carregar dados iniciais:', error);
+        }
+      }
+    };
+    
+    carregarDadosIniciais();
+    
+    // Atualiza pontos gastos periodicamente (para sincronizar com compras na Shop)
+    const interval = setInterval(async () => {
+      const userId = auth.currentUser?.uid;
+      if (userId) {
+        try {
+          const docRef = doc(db, "users", userId);
+          const snapshot = await getDoc(docRef);
+          if (snapshot.exists()) {
+            const data = snapshot.data();
+            const objetivos = data.objetivos || [];
+            calcularPontosDisponiveis(objetivos);
+          }
+        } catch (error) {
+          console.log('Profile - Erro ao atualizar pontos:', error);
+        }
+      }
+    }, 1000);
+    
+    return () => {
+      clearInterval(interval);
+    };
   }, []);
+
+  // Listener do Firestore - recria quando a tela recebe foco
+  useFocusEffect(
+    React.useCallback(() => {
+      const userId = auth.currentUser?.uid;
+      
+      if (!userId) {
+        console.log('Profile - userId não disponível');
+        return;
+      }
+
+      console.log('Profile - Configurando listener do Firestore para userId:', userId);
+
+      // Listener em tempo real para os objetivos do Firestore
+      const unsubscribe = onSnapshot(doc(db, "users", userId), (docSnap) => {
+        console.log('Profile - Firestore atualizado:', docSnap.exists());
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          const objetivos = data.objetivos || [];
+          console.log('Profile - Objetivos recebidos:', objetivos.length, 'objetivos');
+          console.log('Profile - Objetivos finalizados:', objetivos.filter(obj => obj.finalizado).length);
+          carregarTasks(objetivos);
+          calcularPontosDisponiveis(objetivos);
+        } else {
+          console.log('Profile - Documento não existe no Firestore');
+        }
+      }, (error) => {
+        console.log('Profile - Erro ao carregar dados do Firestore:', error);
+      });
+
+      return () => {
+        console.log('Profile - Removendo listener do Firestore');
+        unsubscribe();
+      };
+    }, [])
+  );
 
   const carregarDados = async () => {
     try {
+      const userId = auth.currentUser?.uid;
+      if (userId) {
+        // Tenta carregar do Firestore primeiro
+        const userDocRef = doc(db, "users", userId);
+        const docSnap = await getDoc(userDocRef);
+        
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.nomeUsuario) {
+            setNomeUsuario(data.nomeUsuario);
+            setNomePinguim(data.nomePinguim || 'Pinguim');
+            setAvatarSelecionado(data.avatar || '🐧');
+            console.log('Profile - Dados carregados do Firestore');
+            
+            // Sincroniza com AsyncStorage
+            const userData = {
+              nomeUsuario: data.nomeUsuario,
+              nomePinguim: data.nomePinguim || 'Pinguim',
+              avatar: data.avatar || '🐧'
+            };
+            await AsyncStorage.setItem('userData', JSON.stringify(userData));
+            return;
+          }
+        }
+      }
+      
+      // Fallback: carrega do AsyncStorage
       const userData = await AsyncStorage.getItem('userData');
       if (userData) {
         const dados = JSON.parse(userData);
         setNomeUsuario(dados.nomeUsuario);
         setNomePinguim(dados.nomePinguim);
         setAvatarSelecionado(dados.avatar || '🐧');
+        console.log('Profile - Dados carregados do AsyncStorage');
       }
     } catch (error) {
-      console.log('Erro ao carregar dados:', error);
+      console.log('Profile - Erro ao carregar dados:', error);
     }
   };
 
-  const carregarTasks = async () => {
-    try {
-      const tasksData = await AsyncStorage.getItem('objetivos');
-      if (tasksData) {
-        const tasks = JSON.parse(tasksData);
-        const total = tasks.length;
-        const finalizados = tasks.filter(t => t.finalizado).length;
-        const pontos = tasks.filter(t => t.finalizado).reduce((sum, t) => sum + (t.pontos || 5), 0);
-        
-        setTotalObjetivos(total);
-        setObjetivosFinalizados(finalizados);
-        setPontosGanhos(pontos);
-      }
-    } catch (error) {
-      console.log('Erro ao carregar tasks:', error);
-    }
-  };
 
   const abrirModalEdicao = () => {
     setNovoNomeUsuario(nomeUsuario);
@@ -73,6 +219,12 @@ export default function Profile() {
     }
 
     try {
+      const userId = auth.currentUser?.uid;
+      if (!userId) {
+        alert('Erro: usuário não autenticado!');
+        return;
+      }
+
       const userData = {
         nomeUsuario: novoNomeUsuario.trim(),
         nomePinguim: novoNomePinguim.trim(),
@@ -80,7 +232,33 @@ export default function Profile() {
         dataRegistro: new Date().toISOString()
       };
       
+      // Salva no AsyncStorage (para compatibilidade)
       await AsyncStorage.setItem('userData', JSON.stringify(userData));
+      
+      // Salva no Firestore
+      const userDocRef = doc(db, "users", userId);
+      const docSnap = await getDoc(userDocRef);
+      
+      if (docSnap.exists()) {
+        await updateDoc(userDocRef, {
+          nomeUsuario: userData.nomeUsuario,
+          nomePinguim: userData.nomePinguim,
+          avatar: userData.avatar,
+          ultimaAtualizacao: new Date().toISOString()
+        });
+        console.log('Profile - Dados atualizados no Firestore');
+      } else {
+        await setDoc(userDocRef, {
+          email: auth.currentUser?.email || '',
+          ...userData,
+          objetivos: [],
+          pontosTotais: 0,
+          pontosGastos: 0,
+          itensComprados: [],
+          imagemMascote: 'bicho'
+        }, { merge: true });
+        console.log('Profile - Documento criado no Firestore');
+      }
       
       setNomeUsuario(novoNomeUsuario.trim());
       setNomePinguim(novoNomePinguim.trim());
@@ -88,7 +266,7 @@ export default function Profile() {
       setModalEditVisible(false);
       
     } catch (error) {
-      console.log('Erro ao salvar dados:', error);
+      console.log('Profile - Erro ao salvar dados:', error);
       alert('Erro ao salvar. Tente novamente!');
     }
   };
@@ -136,8 +314,8 @@ export default function Profile() {
           {/* Stats Cards */}
           <View style={styles.statsRow}>
             <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{pontosGanhos}</Text>
-              <Text style={styles.statLabel}>⚡ Pontos</Text>
+              <Text style={styles.statNumber}>{pontosDisponiveis}</Text>
+              <Text style={styles.statLabel}>⚡ Pontos Disponíveis</Text>
             </View>
             
             <View style={styles.statCard}>
@@ -219,8 +397,8 @@ export default function Profile() {
                 <Text style={styles.activityEmoji}>⚡</Text>
               </View>
               <View style={styles.activityContent}>
-                <Text style={styles.activityTitle}>Pontos Ganhos</Text>
-                <Text style={styles.activityTime}>Total • {pontosGanhos} pontos</Text>
+                <Text style={styles.activityTitle}>Pontos Disponíveis</Text>
+                <Text style={styles.activityTime}>Total • {pontosGanhos} pontos ganhos • {pontosDisponiveis} disponíveis</Text>
               </View>
             </View>
             
