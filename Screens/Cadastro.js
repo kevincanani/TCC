@@ -1,115 +1,76 @@
-import { View, Text, Image, TextInput, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, Image } from "react-native"
 import { useState } from 'react';
-import { auth, db } from "../controller";
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { auth } from "../controller";
+import { createUserWithEmailAndPassword } from "firebase/auth";
 
-export default function Cadastro({navigation}) {
-    const [nome, setNome] = useState("");
+export default function Cadastro({ navigation }) {
+
     const [email, setEmail] = useState("");
     const [senha, setSenha] = useState("");
 
-    const CadastrarUser = async () => {
-        if (!nome.trim() || !email.trim() || !senha.trim()) {
-            Alert.alert("Erro", "Por favor, preencha todos os campos!");
-            return;
-        }
-
-        try {
-            // Cria o usuário no Firebase Auth
-            const userCredential = await createUserWithEmailAndPassword(auth, email, senha);
-            const user = userCredential.user;
-
-            // Adiciona informações do usuário no Firestore
-            await setDoc(doc(db, "users", user.uid), {
-                nome: nome,
-                email: email,
-                criadoEm: new Date().toISOString(),
-                pontosTotais: 0,
-                objetivos: []
+    const RegistroUsuario = () => {
+        createUserWithEmailAndPassword(auth, email, senha)
+            .then((userCredential) => {
+                console.log("Usuário cadastrado!", userCredential.user.email)
+                navigation.navigate('Login')
+            })
+            .catch((error) => {
+                console.log('error', error.message);
             });
-
-            Alert.alert("Sucesso", "Usuário cadastrado com sucesso!");
-            navigation.navigate('Login');
-        } catch (error) {
-            console.log('Erro ao cadastrar: ', error.message);
-            
-            let mensagemErro = "Erro ao cadastrar usuário!";
-            if (error.code === 'auth/email-already-in-use') {
-                mensagemErro = "Este e-mail já está em uso!";
-            } else if (error.code === 'auth/weak-password') {
-                mensagemErro = "A senha deve ter pelo menos 6 caracteres!";
-            } else if (error.code === 'auth/invalid-email') {
-                mensagemErro = "E-mail inválido!";
-            }
-            
-            Alert.alert("Erro", mensagemErro);
-        }
     }
 
-    return(
+    return (
         <View style={styles.containerCadastro}>
             <Text style={styles.textTitle}>Cadastro</Text>
 
-            <Image style={styles.img} source={require('../assets/logo.png')}/>
+            <Image style={styles.img} source={require('../assets/logo.png')} />
+
+            <Text style={styles.txt}>Se você ainda não possui uma conta,</Text>
+            <Text style={styles.txt}>cadastre-se para acessar nossos serviços.</Text>
 
             <View style={styles.viewInput}>
                 <TextInput
                     style={styles.txtInput}
-                    placeholder='Nome completo'
-                    placeholderTextColor={'#666'}
-                    value={nome}
-                    onChangeText={setNome}
-                />
-
-                <TextInput
-                    style={styles.txtInput}
                     placeholder='Email'
-                    placeholderTextColor={'#666'}
+                    placeholderTextColor={'black'}
                     value={email}
                     onChangeText={setEmail}
-                    keyboardType='email-address'
-                    autoCapitalize='none'
                 />
 
                 <TextInput
                     style={styles.txtInput}
-                    placeholder='Senha (mínimo 6 caracteres)'
-                    placeholderTextColor={'#666'}
+                    placeholder='Senha'
+                    placeholderTextColor={'black'}
                     value={senha}
                     onChangeText={setSenha}
                     secureTextEntry={true}
                 />
 
-                <TouchableOpacity 
-                    style={styles.btnCadastrar}
-                    onPress={CadastrarUser}
-                    activeOpacity={0.8}
-                >
-                    <Text style={styles.txtBtn}>Cadastrar</Text>
+                <TouchableOpacity onPress={RegistroUsuario}>
+                    <Text style={styles.txtBtn}>Cadastre-se</Text>
                 </TouchableOpacity>
             </View>
 
-            <Text style={styles.txt}>Já possui uma conta?</Text>
+            <Text style={styles.txtFooter}>Já possui uma conta?</Text>
+            <Text style={styles.txtFooter}>Faça login agora.</Text>
 
             <TouchableOpacity 
-                style={styles.btnLogin}
-                onPress={() => navigation.navigate('Login')}
-                activeOpacity={0.8}
-            >
+                style={styles.btn}
+                onPress={() => navigation.navigate('Login')}>
                 <Text style={styles.txtBtn}>Fazer Login</Text>
             </TouchableOpacity>
+
         </View>
     )
 }
 
 const styles = StyleSheet.create({
-    containerCadastro:{
+    containerCadastro: {
         flex: 1,
         backgroundColor: '#F1F8E9',
-        justifyContent: 'center'
+        color: '#FFFFFF'
     },
-    txtInput:{
+    txtInput: {
         fontWeight: 'bold',
         width: 325,
         borderWidth: 2,
@@ -117,29 +78,23 @@ const styles = StyleSheet.create({
         borderRadius: 15,
         padding: 15,
         alignSelf: 'center',
-        margin: 10,
-        backgroundColor: '#FFFFFF',
-        fontSize: 16,
-        color: '#000'
+        margin: 15,
+        backgroundColor: '#F1F8E9'
     },
-    textTitle:{
-        fontSize: 28,
+    textTitle: {
+        padding: 25,
+        fontSize: 24,
         fontWeight: 'bold',
-        alignSelf: 'center',
-        marginBottom: 20,
-        color: '#2E7D32'
+        alignSelf: 'center'
     },
-    btnCadastrar:{
-        alignSelf: 'center',
-        marginTop: 10
+    btn: {
+        alignItems: 'center',
+        padding: 30
     },
-    btnLogin:{
-        alignSelf: 'center',
-        marginTop: 10
-    },
-    txtBtn:{
+    txtBtn: {
         color: '#FFF',
         fontWeight: 'bold',
+        alignSelf: 'center',
         padding: 15,
         paddingLeft: 30,
         paddingRight: 30,
@@ -147,24 +102,29 @@ const styles = StyleSheet.create({
         borderWidth: 2,
         borderRadius: 10,
         backgroundColor: '#66BB6A',
-        fontSize: 16
+        margin: 10
     },
-    txt:{
-        fontWeight: '600',
+    txt: {
+        fontWeight: 'bold',
         textAlign: 'center',
         alignSelf: 'center',
         fontSize: 16,
-        marginTop: 20,
-        color: '#2E7D32'
+        marginTop: 5
     },
-    viewInput:{
-        paddingVertical: 20
+    txtFooter: {
+        fontWeight: 'bold',
+        textAlign: 'center',
+        alignSelf: 'center',
+        fontSize: 20
     },
-    img:{
+    viewInput: {
+        padding: 30
+    },
+    img: {
         width: 150,
         height: 150,
         alignSelf: 'center',
         borderRadius: 20,
-        marginBottom: 20
+        marginBottom: 15
     },
 });
