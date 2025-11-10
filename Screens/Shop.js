@@ -10,7 +10,7 @@ export default function Shop() {
   const [itensComprados, setItensComprados] = useState([]);
   const [pontosGastos, setPontosGastos] = useState(0);
 
-  // CORREÇÃO: Certifique-se que os valores de imagemMascote correspondem às chaves do objeto imagens em Home.js
+  // CORREÇÃO: Agora salvamos apenas o acessório, não a imagem completa
   const [shopItems] = useState([
     {
       id: 1,
@@ -19,7 +19,7 @@ export default function Shop() {
       price: 15,
       icon: '🕶️',
       color: '#8B5CF6',
-      imagemMascote: 'bicho_oculos' // Deve corresponder à chave em Home.js
+      acessorio: 'oculos' // Salva apenas o acessório
     },
     {
       id: 2,
@@ -28,7 +28,7 @@ export default function Shop() {
       price: 20,
       icon: '🎉',
       color: '#06B6D4',
-      imagemMascote: 'bicho_chapeu' // Deve corresponder à chave em Home.js
+      acessorio: 'chapeu' // Salva apenas o acessório
     },
     {
       id: 3,
@@ -37,7 +37,7 @@ export default function Shop() {
       price: 25,
       icon: '🧣',
       color: '#F97316',
-      imagemMascote: 'bicho_gravata' // Deve corresponder à chave em Home.js
+      acessorio: 'gravata' // Salva apenas o acessório
     },
   ]);
 
@@ -189,18 +189,21 @@ export default function Shop() {
           const objetivos = data.objetivos || [];
           console.log('Shop - Objetivos recebidos:', objetivos.length, 'objetivos');
           console.log('Shop - Objetivos finalizados:', objetivos.filter(obj => obj.finalizado).length);
+          
+          // Atualiza pontos gastos ANTES de calcular disponíveis
+          if (data.pontosGastos !== undefined) {
+            const gastosAtualizados = data.pontosGastos || 0;
+            console.log('Shop - Pontos gastos atualizados do Firestore:', gastosAtualizados);
+            setPontosGastos(gastosAtualizados);
+          }
+          
+          // Agora calcula pontos disponíveis com os gastos atualizados
           calcularPontosDisponiveis(objetivos);
           
           // Atualiza itens comprados do Firestore
           if (data.itensComprados && Array.isArray(data.itensComprados)) {
             setItensComprados(data.itensComprados);
             console.log('Shop - Itens comprados atualizados do Firestore:', data.itensComprados);
-          }
-          
-          // Atualiza pontos gastos do Firestore
-          if (data.pontosGastos !== undefined) {
-            setPontosGastos(data.pontosGastos || 0);
-            console.log('Shop - Pontos gastos atualizados do Firestore:', data.pontosGastos);
           }
         } else {
           console.log('Shop - Documento não existe no Firestore');
@@ -213,7 +216,7 @@ export default function Shop() {
         console.log('Shop - Removendo listener do Firestore');
         unsubscribe();
       };
-    }, [])
+    }, [pontosGastos])
   );
 
 
@@ -381,6 +384,8 @@ export default function Shop() {
           onPress: async () => {
             try {
               console.log('Shop - 🎯 Processando compra...');
+              console.log('Shop - Pontos antes da compra:', pontosUsuario);
+              console.log('Shop - Pontos gastos antes da compra:', pontosGastos);
               
               // 1. Salva a imagem do mascote PRIMEIRO (mais importante)
               if (item.imagemMascote) {
@@ -401,12 +406,16 @@ export default function Shop() {
               const novosPontosGastos = pontosGastos + item.price;
               const novoPontoDisponivel = pontosUsuario - item.price;
               
+              console.log('Shop - 💰 Calculando novos valores:');
+              console.log('Shop -    Pontos gastos (antes):', pontosGastos);
+              console.log('Shop -    Preço do item:', item.price);
+              console.log('Shop -    Pontos gastos (depois):', novosPontosGastos);
+              console.log('Shop -    Pontos disponíveis (depois):', novoPontoDisponivel);
+              
               // Atualiza estado local primeiro (para feedback instantâneo)
               setPontosUsuario(novoPontoDisponivel);
               setPontosGastos(novosPontosGastos);
-              console.log('Shop - ✅ Pontos atualizados localmente');
-              console.log('Shop - Pontos gastos:', novosPontosGastos);
-              console.log('Shop - Pontos disponíveis:', novoPontoDisponivel);
+              console.log('Shop - ✅ Estados locais atualizados');
               
               // Depois salva no banco
               await salvarPontosGastos(novosPontosGastos);
