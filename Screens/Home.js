@@ -11,13 +11,16 @@ export default function Home() {
     const [nomePinguim, setNomePinguim] = useState('Pinguim');
 
     const imagens = {
-        bicho: require('../assets/mascote.png'),
+        bicho: require('../assets/azul.png'),
         bicho2: require('../assets/bicho2.png'),
-        // Imagens com acessórios
-        bicho_chapeu: require('../assets/mascote_chapeu.png'),
-        bicho_oculos: require('../assets/mascote_oculos.png'),
-        bicho_gravata: require('../assets/mascote_cachecol.png'),
+        // Imagens com acessórios - IMPORTANTE: essas chaves devem corresponder ao imagemMascote do Shop
+        bicho_chapeu: require('../assets/azul_chapeu.png'),
+        bicho_oculos: require('../assets/azul_oculos.png'),
+        bicho_gravata: require('../assets/azul_cachecol.png'),
     };
+
+    // Debug: mostra as chaves disponíveis
+    console.log('Home - Imagens disponíveis:', Object.keys(imagens));
 
     const carregarImagemMascote = async () => {
         try {
