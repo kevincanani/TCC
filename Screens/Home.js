@@ -65,10 +65,12 @@ export default function Home() {
                     }
                     
                     // Carrega o acessório atual
-                    if (data.acessorioMascote) {
+                    // Dentro da função carregarDadosMascote:
+                    if (data.acessorioMascote !== undefined) {
                         const acessorioSalvo = data.acessorioMascote.trim();
-                        console.log('Home - Acessório carregado do Firestore:', acessorioSalvo);
                         setAcessorioAtual(acessorioSalvo);
+                    } else {
+                        setAcessorioAtual(''); // Limpa o acessório se não houver nenhum salvo
                     }
                     
                     // Atualiza a imagem com base na cor e acessório
@@ -195,17 +197,17 @@ export default function Home() {
                 // Atualiza acessório do mascote
                 if (data.acessorioMascote !== undefined) {
                     const acessorioLimpo = data.acessorioMascote.trim();
-                    console.log('Home - Firestore: Novo acessório recebido:', acessorioLimpo);
                     setAcessorioAtual(acessorioLimpo);
-                    
-                    // Atualiza a imagem
-                    const novaImagem = construirNomeImagem(
-                        data.corMascote || corMascote,
-                        acessorioLimpo
-                    );
-                    console.log('Home - Atualizando imagem para:', novaImagem);
-                    setImagemAtual(novaImagem);
-                }
+                  } else {
+                    setAcessorioAtual(''); // ADICIONAR esta linha
+                  }
+
+                  // Após atualizar cor e acessório, adicionar:
+                const corFinal = data.corMascote ? data.corMascote.trim() : corMascote;
+                const acessorioFinal = data.acessorioMascote !== undefined ? data.acessorioMascote.trim() : '';
+                const novaImagem = construirNomeImagem(corFinal, acessorioFinal);
+                console.log('Home - Atualizando imagem para:', novaImagem);
+                setImagemAtual(novaImagem);
                 
                 // Carrega os objetivos
                 if (data.objetivos && Array.isArray(data.objetivos)) {

@@ -250,6 +250,46 @@ export default function Shop() {
     }
   };
 
+  const salvarAcessorioMascote = async (acessorio) => {
+    try {
+      const acessorioLimpo = acessorio.trim();
+      console.log('Shop - 🎨 Salvando acessório do mascote:', acessorioLimpo);
+      
+      // Salva no AsyncStorage
+      await AsyncStorage.setItem('acessorioMascote', acessorioLimpo);
+      console.log('Shop - ✅ Acessório salvo no AsyncStorage:', acessorioLimpo);
+      
+      // Salva no Firestore
+      const userId = auth.currentUser?.uid;
+      if (userId) {
+        const userDocRef = doc(db, "users", userId);
+        const docSnap = await getDoc(userDocRef);
+        
+        if (docSnap.exists()) {
+          await updateDoc(userDocRef, {
+            acessorioMascote: acessorioLimpo,
+            ultimaAtualizacao: new Date().toISOString()
+          });
+          console.log('Shop - ✅ Acessório salvo no Firestore:', acessorioLimpo);
+        } else {
+          await setDoc(userDocRef, {
+            acessorioMascote: acessorioLimpo,
+            ultimaAtualizacao: new Date().toISOString()
+          }, { merge: true });
+          console.log('Shop - ✅ Documento criado com acessório');
+        }
+        
+        const verificacao = await getDoc(userDocRef);
+        if (verificacao.exists()) {
+          const dadosVerificacao = verificacao.data();
+          console.log('Shop - ✅ Verificação: acessorioMascote salvo como:', dadosVerificacao.acessorioMascote);
+        }
+      }
+    } catch (error) {
+      console.log('Shop - ❌ Erro ao salvar acessório:', error);
+    }
+  };
+
   const salvarPontosGastos = async (novoTotal) => {
     try {
       console.log('Shop - 💰 Salvando pontos gastos:', novoTotal);
@@ -291,48 +331,6 @@ export default function Shop() {
     }
   };
 
-  const salvarImagemMascote = async (imagemId) => {
-    try {
-      const imagemIdLimpo = imagemId.trim();
-      console.log('Shop - 🎨 Tentando salvar imagem do mascote:', imagemIdLimpo);
-      
-      // Salva no AsyncStorage (para compatibilidade)
-      await AsyncStorage.setItem('imagemMascoteAtual', imagemIdLimpo);
-      console.log('Shop - ✅ Imagem do mascote salva no AsyncStorage:', imagemIdLimpo);
-      
-      // Salva no Firestore
-      const userId = auth.currentUser?.uid;
-      if (userId) {
-        const userDocRef = doc(db, "users", userId);
-        const docSnap = await getDoc(userDocRef);
-        
-        if (docSnap.exists()) {
-          await updateDoc(userDocRef, {
-            imagemMascote: imagemIdLimpo,
-            ultimaAtualizacao: new Date().toISOString()
-          });
-          console.log('Shop - ✅ Imagem do mascote salva no Firestore:', imagemIdLimpo);
-          
-          // Verifica se salvou corretamente
-          const verificacao = await getDoc(userDocRef);
-          if (verificacao.exists()) {
-            const dadosVerificacao = verificacao.data();
-            console.log('Shop - ✅ Verificação: imagemMascote salva como:', dadosVerificacao.imagemMascote);
-          }
-        } else {
-          await setDoc(userDocRef, {
-            imagemMascote: imagemIdLimpo,
-            ultimaAtualizacao: new Date().toISOString()
-          }, { merge: true });
-          console.log('Shop - ✅ Documento criado com imagem do mascote');
-        }
-      }
-    } catch (error) {
-      console.log('Shop - ❌ Erro ao salvar imagem do mascote:', error);
-      console.log('Shop - Detalhes do erro:', error.message);
-    }
-  };
-
   const recarregarPontos = async () => {
     const userId = auth.currentUser?.uid;
     if (userId) {
@@ -353,14 +351,14 @@ export default function Shop() {
   const purchaseItem = async (item) => {
     console.log('Shop - 🛒 Tentando comprar item:', item.name, 'por', item.price, 'pontos');
     console.log('Shop - Pontos disponíveis:', pontosUsuario);
-    console.log('Shop - Imagem do mascote do item:', item.imagemMascote);
+    console.log('Shop - Acessório do item:', item.acessorio); // MUDOU: agora é acessorio, não imagemMascote
     
     // Verifica se já foi comprado
     if (itensComprados.includes(item.id)) {
       Alert.alert('Já comprado!', 'Você já possui este item! 😊');
       return;
     }
-
+  
     // Verifica se tem pontos suficientes
     if (pontosUsuario < item.price) {
       Alert.alert(
@@ -369,7 +367,7 @@ export default function Shop() {
       );
       return;
     }
-
+  
     // Confirma a compra
     Alert.alert(
       'Confirmar compra?',
@@ -387,13 +385,13 @@ export default function Shop() {
               console.log('Shop - Pontos antes da compra:', pontosUsuario);
               console.log('Shop - Pontos gastos antes da compra:', pontosGastos);
               
-              // 1. Salva a imagem do mascote PRIMEIRO (mais importante)
-              if (item.imagemMascote) {
-                console.log('Shop - 🎨 Salvando imagem do mascote:', item.imagemMascote);
-                await salvarImagemMascote(item.imagemMascote);
-                console.log('Shop - ✅ Imagem do mascote salva com sucesso!');
+              // 1. Salva o ACESSÓRIO do mascote (não a imagem completa)
+              if (item.acessorio) {
+                console.log('Shop - 🎨 Salvando acessório do mascote:', item.acessorio);
+                await salvarAcessorioMascote(item.acessorio);
+                console.log('Shop - ✅ Acessório salvo com sucesso!');
               } else {
-                console.log('Shop - ⚠️ ATENÇÃO: Item não tem imagemMascote definida!');
+                console.log('Shop - ⚠️ ATENÇÃO: Item não tem acessorio definido!');
               }
               
               // 2. Adiciona item aos comprados
@@ -401,8 +399,8 @@ export default function Shop() {
               setItensComprados(novosItensComprados);
               await salvarItensComprados(novosItensComprados);
               console.log('Shop - ✅ Item adicionado aos comprados');
-
-              // 3. Desconta os pontos IMEDIATAMENTE
+  
+              // 3. Desconta os pontos
               const novosPontosGastos = pontosGastos + item.price;
               const novoPontoDisponivel = pontosUsuario - item.price;
               
@@ -412,19 +410,19 @@ export default function Shop() {
               console.log('Shop -    Pontos gastos (depois):', novosPontosGastos);
               console.log('Shop -    Pontos disponíveis (depois):', novoPontoDisponivel);
               
-              // Atualiza estado local primeiro (para feedback instantâneo)
+              // Atualiza estado local primeiro
               setPontosUsuario(novoPontoDisponivel);
               setPontosGastos(novosPontosGastos);
               console.log('Shop - ✅ Estados locais atualizados');
               
-              // Depois salva no banco
+              // Salva no banco
               await salvarPontosGastos(novosPontosGastos);
               console.log('Shop - ✅ Pontos salvos no Firestore');
-
-              // Mostra mensagem de sucesso com pontos atualizados
+  
+              // Mensagem de sucesso
               Alert.alert(
                 'Compra realizada! 🎉',
-                `Você comprou ${item.name}!\n\n💰 Você gastou: ${item.price} pontos\n⚡ Pontos restantes: ${novoPontoDisponivel}\n\n${item.imagemMascote ? '🎨 Volte para a tela inicial para ver seu mascote com o novo acessório!' : ''}`,
+                `Você comprou ${item.name}!\n\n💰 Você gastou: ${item.price} pontos\n⚡ Pontos restantes: ${novoPontoDisponivel}\n\n🎨 Volte para a tela inicial para ver seu mascote com o novo acessório!`,
                 [
                   {
                     text: 'OK',
@@ -434,8 +432,8 @@ export default function Shop() {
                   }
                 ]
               );
-
-              // Recarrega pontos do Firestore para garantir sincronização
+  
+              // Recarrega dados
               setTimeout(async () => {
                 await recarregarPontos();
                 await carregarPontosGastos();
