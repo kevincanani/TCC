@@ -355,6 +355,16 @@ export default function Home() {
     };
 
     const adicionarObjetivo = () => {
+        // Verificar limite de 10 tarefas
+        if (objetivos.length >= 10) {
+            Alert.alert(
+                "Limite atingido", 
+                "Você atingiu o número máximo de 10 tarefas. Delete uma tarefa existente para adicionar uma nova.",
+                [{ text: "OK" }]
+            );
+            return;
+        }
+
         if (novoObjetivoNome.trim() === '') {
             Alert.alert("Atenção", "Digite um nome para o objetivo!");
             return;
