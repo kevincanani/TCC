@@ -17,9 +17,11 @@ import { auth, db } from '../controller';
 import { doc, updateDoc, setDoc, getDoc } from 'firebase/firestore';
 
 export default function Welcome({ navigation, route }) {
+    const [etapaAtual, setEtapaAtual] = useState('inicial'); // inicial, dados, cor, finalizando
     const [modalVisible, setModalVisible] = useState(false);
     const [nomeUsuario, setNomeUsuario] = useState('');
     const [nomePinguim, setNomePinguim] = useState('');
+    const [corSelecionada, setCorSelecionada] = useState('azul');
     const [jaTemDados, setJaTemDados] = useState(false);
     const [mensagemBemVindo, setMensagemBemVindo] = useState('Bem-vindo ao');
     
@@ -27,6 +29,21 @@ export default function Welcome({ navigation, route }) {
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const scaleAnim = useRef(new Animated.Value(0.3)).current;
     const slideAnim = useRef(new Animated.Value(50)).current;
+    const pinguimFadeAnim = useRef(new Animated.Value(0)).current;
+    const pinguimScaleAnim = useRef(new Animated.Value(0.5)).current;
+
+    // Imagens dos pinguins
+    const imagensPinguim = {
+        azul: require('../assets/azul.png'),
+        verde: require('../assets/verde.png'),
+        vermelho: require('../assets/vermelho.png'),
+    };
+
+    const cores = [
+        { id: 'azul', nome: 'Azul', cor: '#2196F3', emoji: '💙' },
+        { id: 'verde', nome: 'Verde', cor: '#4CAF50', emoji: '💚' },
+        { id: 'vermelho', nome: 'Vermelho', cor: '#F44336', emoji: '❤️' },
+    ];
 
     useEffect(() => {
         iniciarTela();
@@ -82,22 +99,65 @@ export default function Welcome({ navigation, route }) {
                 // Mostra o modal após animação
                 setTimeout(() => {
                     setModalVisible(true);
+                    setEtapaAtual('dados');
                 }, 500);
             }
         } catch (error) {
             console.log('Erro ao verificar dados:', error);
             // Em caso de erro, mostra o modal
             setModalVisible(true);
+            setEtapaAtual('dados');
         }
     };
 
-    const salvarDados = async () => {
+    const avancarParaEscolhaCor = () => {
         if (nomeUsuario.trim() === '' || nomePinguim.trim() === '') {
             alert('Por favor, preencha todos os campos! 😊');
             return;
         }
 
+        // Animação de saída do formulário
+        Animated.timing(fadeAnim, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+        }).start(() => {
+            setEtapaAtual('cor');
+            
+            // Animação de entrada do pinguim
+            Animated.parallel([
+                Animated.timing(fadeAnim, {
+                    toValue: 1,
+                    duration: 500,
+                    useNativeDriver: true,
+                }),
+                Animated.spring(pinguimScaleAnim, {
+                    toValue: 1,
+                    tension: 10,
+                    friction: 4,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(pinguimFadeAnim, {
+                    toValue: 1,
+                    duration: 600,
+                    delay: 200,
+                    useNativeDriver: true,
+                })
+            ]).start();
+        });
+    };
+
+    const finalizarCadastro = async () => {
         try {
+            // Animação de saída
+            Animated.timing(fadeAnim, {
+                toValue: 0,
+                duration: 400,
+                useNativeDriver: true,
+            }).start();
+
+            setEtapaAtual('finalizando');
+
             const userId = auth.currentUser?.uid;
             if (!userId) {
                 alert('Erro: usuário não autenticado!');
@@ -107,12 +167,15 @@ export default function Welcome({ navigation, route }) {
             const userData = {
                 nomeUsuario: nomeUsuario.trim(),
                 nomePinguim: nomePinguim.trim(),
-                avatar: '🐧', // Avatar padrão
+                avatar: '🐧',
+                corMascote: corSelecionada,
+                acessorioMascote: '',
                 dataRegistro: new Date().toISOString()
             };
             
             // Salva no AsyncStorage (para compatibilidade)
             await AsyncStorage.setItem('userData', JSON.stringify(userData));
+            await AsyncStorage.setItem('corMascote', corSelecionada);
             
             // Salva no Firestore
             const userDocRef = doc(db, "users", userId);
@@ -124,6 +187,8 @@ export default function Welcome({ navigation, route }) {
                     nomeUsuario: userData.nomeUsuario,
                     nomePinguim: userData.nomePinguim,
                     avatar: userData.avatar,
+                    corMascote: corSelecionada,
+                    acessorioMascote: '',
                     ultimaAtualizacao: new Date().toISOString()
                 });
                 console.log('Welcome - Dados atualizados no Firestore');
@@ -141,18 +206,157 @@ export default function Welcome({ navigation, route }) {
                 console.log('Welcome - Documento criado no Firestore');
             }
             
-            // Fecha modal com animação
-            setModalVisible(false);
-            
-            // Navega para Home
-            setTimeout(() => {
-                navigation.replace('Home');
-            }, 500);
+            // Animação de entrada da mensagem final
+            Animated.sequence([
+                Animated.timing(fadeAnim, {
+                    toValue: 1,
+                    duration: 500,
+                    useNativeDriver: true,
+                }),
+                Animated.delay(1500)
+            ]).start(() => {
+                // Fecha modal
+                setModalVisible(false);
+                
+                // Navega para Home
+                setTimeout(() => {
+                    navigation.replace('Home');
+                }, 500);
+            });
         } catch (error) {
             console.log('Erro ao salvar dados:', error);
             alert('Erro ao salvar. Tente novamente!');
         }
     };
+
+    const renderEtapaDados = () => (
+        <Animated.View style={[styles.etapaContainer, { opacity: fadeAnim }]}>
+            <Text style={styles.modalEmoji}>🐧</Text>
+            <Text style={styles.modalTitle}>Vamos nos conhecer!</Text>
+            <Text style={styles.modalSubtitle}>
+                Precisamos de algumas informações para personalizar sua experiência
+            </Text>
+
+            <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>👤 Seu nome</Text>
+                <TextInput
+                    style={styles.input}
+                    placeholder="Digite seu nome"
+                    placeholderTextColor="#95A5A6"
+                    value={nomeUsuario}
+                    onChangeText={setNomeUsuario}
+                    autoCapitalize="words"
+                />
+            </View>
+
+            <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>🐧 Nome do seu pinguim</Text>
+                <TextInput
+                    style={styles.input}
+                    placeholder="Ex: Pingu, Gelinho, Frosty..."
+                    placeholderTextColor="#95A5A6"
+                    value={nomePinguim}
+                    onChangeText={setNomePinguim}
+                    autoCapitalize="words"
+                />
+            </View>
+
+            <TouchableOpacity
+                style={styles.confirmButton}
+                onPress={avancarParaEscolhaCor}
+                activeOpacity={0.8}
+            >
+                <Text style={styles.confirmButtonText}>Continuar ➜</Text>
+            </TouchableOpacity>
+        </Animated.View>
+    );
+
+    const renderEtapaCor = () => (
+        <Animated.View style={[styles.etapaContainer, { opacity: fadeAnim }]}>
+            <Text style={styles.modalTitle}>Escolha a cor do {nomePinguim}! 🎨</Text>
+            <Text style={styles.modalSubtitle}>
+                Selecione a cor que mais combina com você
+            </Text>
+
+            <Animated.View 
+                style={[
+                    styles.pinguimPreview,
+                    {
+                        opacity: pinguimFadeAnim,
+                        transform: [{ scale: pinguimScaleAnim }]
+                    }
+                ]}
+            >
+                <Image
+                    style={styles.pinguimImage}
+                    source={imagensPinguim[corSelecionada]}
+                />
+                <Text style={styles.pinguimNome}>✨ {nomePinguim} ✨</Text>
+            </Animated.View>
+
+            <View style={styles.coresContainer}>
+                {cores.map((cor) => (
+                    <TouchableOpacity
+                        key={cor.id}
+                        style={[
+                            styles.corItem,
+                            { borderColor: cor.cor },
+                            corSelecionada === cor.id && styles.corSelecionada
+                        ]}
+                        onPress={() => {
+                            setCorSelecionada(cor.id);
+                            // Pequena animação ao trocar
+                            Animated.sequence([
+                                Animated.timing(pinguimScaleAnim, {
+                                    toValue: 0.9,
+                                    duration: 100,
+                                    useNativeDriver: true,
+                                }),
+                                Animated.spring(pinguimScaleAnim, {
+                                    toValue: 1,
+                                    tension: 20,
+                                    friction: 3,
+                                    useNativeDriver: true,
+                                })
+                            ]).start();
+                        }}
+                        activeOpacity={0.7}
+                    >
+                        <View style={[styles.corCirculo, { backgroundColor: cor.cor }]}>
+                            <Text style={styles.corEmoji}>{cor.emoji}</Text>
+                        </View>
+                        <Text style={styles.corNome}>{cor.nome}</Text>
+                        {corSelecionada === cor.id && (
+                            <Text style={styles.corCheckmark}>✓</Text>
+                        )}
+                    </TouchableOpacity>
+                ))}
+            </View>
+
+            <TouchableOpacity
+                style={styles.confirmButton}
+                onPress={finalizarCadastro}
+                activeOpacity={0.8}
+            >
+                <Text style={styles.confirmButtonText}>Confirmar Escolha! 🚀</Text>
+            </TouchableOpacity>
+        </Animated.View>
+    );
+
+    const renderEtapaFinalizando = () => (
+        <Animated.View style={[styles.etapaContainer, { opacity: fadeAnim }]}>
+            <Text style={styles.loadingEmoji}>✨</Text>
+            <Text style={styles.loadingTitle}>Tudo pronto!</Text>
+            <Text style={styles.loadingSubtitle}>
+                Aguarde alguns instantes...
+            </Text>
+            <View style={styles.loadingDots}>
+                <Text style={styles.dot}>●</Text>
+                <Text style={styles.dot}>●</Text>
+                <Text style={styles.dot}>●</Text>
+            </View>
+        </Animated.View>
+    );
 
     return (
         <View style={styles.container}>
@@ -187,7 +391,7 @@ export default function Welcome({ navigation, route }) {
                 </Animated.View>
             </Animated.View>
 
-            {/* Modal de Cadastro - Só aparece para usuários novos */}
+            {/* Modal de Cadastro - Agora com etapas */}
             <Modal
                 animationType="slide"
                 transparent={true}
@@ -199,47 +403,9 @@ export default function Welcome({ navigation, route }) {
                     style={styles.modalOverlay}
                 >
                     <View style={styles.modalContent}>
-                        <Text style={styles.modalEmoji}>🐧</Text>
-                        <Text style={styles.modalTitle}>Vamos nos conhecer!</Text>
-                        <Text style={styles.modalSubtitle}>
-                            Precisamos de algumas informações para personalizar sua experiência
-                        </Text>
-
-                        <View style={styles.inputContainer}>
-                            <Text style={styles.inputLabel}>👤 Seu nome</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Digite seu nome"
-                                placeholderTextColor="#95A5A6"
-                                value={nomeUsuario}
-                                onChangeText={setNomeUsuario}
-                                autoCapitalize="words"
-                            />
-                        </View>
-
-                        <View style={styles.inputContainer}>
-                            <Text style={styles.inputLabel}>🐧 Nome do seu pinguim</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Ex: Pingu, Gelinho, Frosty..."
-                                placeholderTextColor="#95A5A6"
-                                value={nomePinguim}
-                                onChangeText={setNomePinguim}
-                                autoCapitalize="words"
-                            />
-                        </View>
-
-                        <TouchableOpacity
-                            style={styles.confirmButton}
-                            onPress={salvarDados}
-                            activeOpacity={0.8}
-                        >
-                            <Text style={styles.confirmButtonText}>Começar Aventura! 🚀</Text>
-                        </TouchableOpacity>
-
-                        <Text style={styles.privacyText}>
-                            Suas informações ficam salvas apenas no seu dispositivo 🔒
-                        </Text>
+                        {etapaAtual === 'dados' && renderEtapaDados()}
+                        {etapaAtual === 'cor' && renderEtapaCor()}
+                        {etapaAtual === 'finalizando' && renderEtapaFinalizando()}
                     </View>
                 </KeyboardAvoidingView>
             </Modal>
@@ -321,6 +487,9 @@ const styles = StyleSheet.create({
         shadowRadius: 12,
         elevation: 10,
     },
+    etapaContainer: {
+        width: '100%',
+    },
     modalEmoji: {
         fontSize: 60,
         textAlign: 'center',
@@ -380,10 +549,102 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: 'bold',
     },
-    privacyText: {
-        fontSize: 12,
-        color: '#95A5A6',
+    // Estilos da etapa de escolha de cor
+    pinguimPreview: {
+        alignItems: 'center',
+        marginVertical: 20,
+        backgroundColor: '#F0F9FF',
+        borderRadius: 20,
+        padding: 20,
+        borderWidth: 3,
+        borderColor: '#BFDBFE',
+    },
+    pinguimImage: {
+        width: 120,
+        height: 180,
+        resizeMode: 'contain',
+    },
+    pinguimNome: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#2C3E50',
+        marginTop: 10,
+    },
+    coresContainer: {
+        gap: 12,
+        marginVertical: 20,
+    },
+    corItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F9FAFB',
+        borderRadius: 16,
+        padding: 16,
+        borderWidth: 3,
+        borderColor: 'transparent',
+        gap: 16,
+    },
+    corSelecionada: {
+        backgroundColor: '#F0F9FF',
+        borderWidth: 3,
+        transform: [{ scale: 1.02 }],
+    },
+    corCirculo: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 3,
+        },
+        shadowOpacity: 0.2,
+        shadowRadius: 5,
+        elevation: 4,
+    },
+    corEmoji: {
+        fontSize: 24,
+    },
+    corNome: {
+        flex: 1,
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#1F2937',
+    },
+    corCheckmark: {
+        fontSize: 24,
+        color: '#4CAF50',
+        fontWeight: 'bold',
+    },
+    // Estilos da etapa de finalização
+    loadingEmoji: {
+        fontSize: 80,
         textAlign: 'center',
-        marginTop: 15,
+        marginBottom: 20,
+    },
+    loadingTitle: {
+        fontSize: 28,
+        fontWeight: 'bold',
+        color: '#4CAF50',
+        textAlign: 'center',
+        marginBottom: 10,
+    },
+    loadingSubtitle: {
+        fontSize: 16,
+        color: '#7F8C8D',
+        textAlign: 'center',
+        marginBottom: 30,
+    },
+    loadingDots: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        gap: 10,
+    },
+    dot: {
+        fontSize: 24,
+        color: '#4CAF50',
+        opacity: 0.5,
     },
 });
