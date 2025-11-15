@@ -7,10 +7,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Home() {
     const [imagemAtual, setImagemAtual] = useState('azul');
-    const [corMascote, setCorMascote] = useState('azul'); // azul, verde, vermelho
-    const [acessorioAtual, setAcessorioAtual] = useState(''); // '', chapeu, oculos, gravata
+    const [corMascote, setCorMascote] = useState('azul');
+    const [acessorioAtual, setAcessorioAtual] = useState('');
     const [nomePinguim, setNomePinguim] = useState('Pinguim');
-    const [modalCorVisible, setModalCorVisible] = useState(false);
 
     // Todas as combinações de cores e acessórios
     const imagens = {
@@ -33,15 +32,9 @@ export default function Home() {
         vermelho_gravata: require('../assets/vermelho_cachecol.png'),
     };
 
-    const cores = [
-        { id: 'azul', nome: 'Azul', cor: '#2196F3', emoji: '' },
-        { id: 'verde', nome: 'Verde', cor: '#4CAF50', emoji: '' },
-        { id: 'vermelho', nome: 'Vermelho', cor: '#F44336', emoji: '' },
-    ];
-
     // Constrói o nome da imagem baseado na cor e acessório
     const construirNomeImagem = (cor, acessorio) => {
-        if (acessorio) {
+        if (acessorio && acessorio.trim() !== '') {
             return `${cor}_${acessorio}`;
         }
         return cor;
@@ -65,12 +58,12 @@ export default function Home() {
                     }
                     
                     // Carrega o acessório atual
-                    // Dentro da função carregarDadosMascote:
                     if (data.acessorioMascote !== undefined) {
-                        const acessorioSalvo = data.acessorioMascote.trim();
+                        const acessorioSalvo = data.acessorioMascote ? data.acessorioMascote.trim() : '';
+                        console.log('Home - Acessório carregado do Firestore:', acessorioSalvo);
                         setAcessorioAtual(acessorioSalvo);
                     } else {
-                        setAcessorioAtual(''); // Limpa o acessório se não houver nenhum salvo
+                        setAcessorioAtual('');
                     }
                     
                     // Atualiza a imagem com base na cor e acessório
@@ -103,43 +96,6 @@ export default function Home() {
             setImagemAtual(nomeImagem);
         } catch (error) {
             console.log('Home - Erro ao carregar dados do mascote:', error);
-        }
-    };
-
-    const salvarCorMascote = async (novaCor) => {
-        try {
-            console.log('Home - 🎨 Salvando nova cor:', novaCor);
-            
-            // Salva no AsyncStorage
-            await AsyncStorage.setItem('corMascote', novaCor);
-            
-            // Salva no Firestore
-            const userId = auth.currentUser?.uid;
-            if (userId) {
-                const userDocRef = doc(db, "users", userId);
-                const docSnap = await getDoc(userDocRef);
-                
-                if (docSnap.exists()) {
-                    await updateDoc(userDocRef, {
-                        corMascote: novaCor,
-                        ultimaAtualizacao: new Date().toISOString()
-                    });
-                } else {
-                    await setDoc(userDocRef, {
-                        corMascote: novaCor,
-                        ultimaAtualizacao: new Date().toISOString()
-                    }, { merge: true });
-                }
-                console.log('Home - ✅ Cor salva no Firestore');
-            }
-            
-            // Atualiza a imagem
-            setCorMascote(novaCor);
-            const novaImagem = construirNomeImagem(novaCor, acessorioAtual);
-            setImagemAtual(novaImagem);
-            console.log('Home - ✅ Imagem atualizada para:', novaImagem);
-        } catch (error) {
-            console.log('Home - ❌ Erro ao salvar cor:', error);
         }
     };
 
@@ -196,15 +152,16 @@ export default function Home() {
                 
                 // Atualiza acessório do mascote
                 if (data.acessorioMascote !== undefined) {
-                    const acessorioLimpo = data.acessorioMascote.trim();
+                    const acessorioLimpo = data.acessorioMascote ? data.acessorioMascote.trim() : '';
+                    console.log('Home - Firestore: Novo acessório recebido:', acessorioLimpo);
                     setAcessorioAtual(acessorioLimpo);
-                  } else {
-                    setAcessorioAtual(''); // ADICIONAR esta linha
-                  }
+                } else {
+                    setAcessorioAtual('');
+                }
 
-                  // Após atualizar cor e acessório, adicionar:
+                // Após atualizar cor e acessório
                 const corFinal = data.corMascote ? data.corMascote.trim() : corMascote;
-                const acessorioFinal = data.acessorioMascote !== undefined ? data.acessorioMascote.trim() : '';
+                const acessorioFinal = data.acessorioMascote !== undefined ? (data.acessorioMascote ? data.acessorioMascote.trim() : '') : '';
                 const novaImagem = construirNomeImagem(corFinal, acessorioFinal);
                 console.log('Home - Atualizando imagem para:', novaImagem);
                 setImagemAtual(novaImagem);
@@ -256,7 +213,7 @@ export default function Home() {
         });
 
         return () => unsubscribe();
-    }, [corMascote, acessorioAtual]);
+    }, []);
 
     const salvarObjetivosFirestore = async (novosObjetivos) => {
         try {
@@ -355,7 +312,6 @@ export default function Home() {
     };
 
     const adicionarObjetivo = () => {
-        // Verificar limite de 10 tarefas
         if (objetivos.length >= 10) {
             Alert.alert(
                 "Limite atingido", 
@@ -392,12 +348,6 @@ export default function Home() {
         setModalVisible(false);
         setNovoObjetivoNome('');
         setNovoObjetivoIcone('');
-    };
-
-    const selecionarCor = (cor) => {
-        salvarCorMascote(cor.id);
-        setModalCorVisible(false);
-        Alert.alert('Cor atualizada! 🎨', `Seu mascote agora é ${cor.nome}!`);
     };
 
     const renderObjetivoItem = (objetivo) => (
@@ -494,16 +444,8 @@ export default function Home() {
                         🧊 {nomePinguim}
                     </Text>
                     
-                    <TouchableOpacity 
-                        style={styles.trocarCorButton}
-                        onPress={() => setModalCorVisible(true)}
-                        activeOpacity={0.8}
-                    >
-                        <Text style={styles.buttonText}>🎨 Trocar Cor</Text>
-                    </TouchableOpacity>
-                    
                     <Text style={styles.dica}>
-                        💡 Compre acessórios na loja!
+                        💡 Compre acessórios na loja e altere a cor no perfil!
                     </Text>
                 </View>
 
@@ -524,51 +466,6 @@ export default function Home() {
                     </TouchableOpacity>
                 </View>
             </ScrollView>
-
-            {/* Modal de Seleção de Cor */}
-            <Modal
-                animationType="slide"
-                transparent={true}
-                visible={modalCorVisible}
-                onRequestClose={() => setModalCorVisible(false)}
-            >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalCorContent}>
-                        <Text style={styles.modalTitle}>Escolha a cor do mascote</Text>
-                        
-                        <View style={styles.coresContainer}>
-                            {cores.map((cor) => (
-                                <TouchableOpacity
-                                    key={cor.id}
-                                    style={[
-                                        styles.corItem,
-                                        { borderColor: cor.cor },
-                                        corMascote === cor.id && styles.corSelecionada
-                                    ]}
-                                    onPress={() => selecionarCor(cor)}
-                                    activeOpacity={0.7}
-                                >
-                                    <View style={[styles.corCirculo, { backgroundColor: cor.cor }]}>
-                                        <Text style={styles.corEmoji}>{cor.emoji}</Text>
-                                    </View>
-                                    <Text style={styles.corNome}>{cor.nome}</Text>
-                                    {corMascote === cor.id && (
-                                        <Text style={styles.corCheckmark}>✓</Text>
-                                    )}
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-
-                        <TouchableOpacity
-                            style={styles.modalFecharButton}
-                            onPress={() => setModalCorVisible(false)}
-                            activeOpacity={0.8}
-                        >
-                            <Text style={styles.modalFecharText}>Fechar</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
 
             {/* Modal de Novo Objetivo */}
             <Modal
@@ -693,113 +590,6 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#C8E6C9',
     },
-     modalCorContent: {
-        backgroundColor: 'white',
-        borderRadius: 24,
-        padding: 30,
-        width: '90%',
-        maxWidth: 400,
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 8,
-        },
-        shadowOpacity: 0.25,
-        shadowRadius: 16,
-        elevation: 10,
-    },
-    coresContainer: {
-        gap: 16,
-        marginVertical: 20,
-    },
-    corItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#F9FAFB',
-        borderRadius: 16,
-        padding: 16,
-        borderWidth: 3,
-        borderColor: 'transparent',
-        gap: 16,
-    },
-    corSelecionada: {
-        backgroundColor: '#F0F9FF',
-        borderWidth: 3,
-        transform: [{ scale: 1.02 }],
-    },
-    corCirculo: {
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        alignItems: 'center',
-        justifyContent: 'center',
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 4,
-        },
-        shadowOpacity: 0.2,
-        shadowRadius: 6,
-        elevation: 5,
-    },
-    corEmoji: {
-        fontSize: 28,
-    },
-    corNome: {
-        flex: 1,
-        fontSize: 18,
-        fontWeight: '600',
-        color: '#1F2937',
-    },
-    corCheckmark: {
-        fontSize: 24,
-        color: '#4CAF50',
-        fontWeight: 'bold',
-    },
-    modalFecharButton: {
-        backgroundColor: '#F3F4F6',
-        paddingVertical: 16,
-        borderRadius: 14,
-        marginTop: 10,
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    modalFecharText: {
-        color: '#6B7280',
-        fontSize: 17,
-        fontWeight: '600',
-        textAlign: 'center',
-    },
-    trocarCorButton: {
-        backgroundColor: '#4CAF50',
-        paddingHorizontal: 25,
-        paddingVertical: 12,
-        borderRadius: 25,
-        shadowColor: '#2E7D32',
-        shadowOffset: {
-            width: 0,
-            height: 3,
-        },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
-        elevation: 4,
-        borderWidth: 1,
-        borderColor: '#66BB6A',
-        marginBottom: 10,
-    },
-    mascoteTitle: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        color: '#2E7D32',
-        marginBottom: 15,
-        textAlign: 'center',
-    },
     imageContainer: {
         backgroundColor: '#F1F8E9',
         borderRadius: 15,
@@ -817,7 +607,7 @@ const styles = StyleSheet.create({
         fontSize: 15,
         color: '#388E3C',
         fontWeight: '600',
-        marginBottom: 15,
+        marginBottom: 10,
     },
     errorText: {
         fontSize: 12,
@@ -825,33 +615,11 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         textAlign: 'center',
     },
-    trocarButton: {
-        backgroundColor: '#4CAF50',
-        paddingHorizontal: 25,
-        paddingVertical: 12,
-        borderRadius: 25,
-        shadowColor: '#2E7D32',
-        shadowOffset: {
-            width: 0,
-            height: 3,
-        },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
-        elevation: 4,
-        borderWidth: 1,
-        borderColor: '#66BB6A',
-        marginBottom: 10,
-    },
-    buttonText: {
-        color: '#FFFFFF',
-        fontSize: 16,
-        fontWeight: 'bold',
-        textAlign: 'center',
-    },
     dica: {
         fontSize: 12,
         color: '#666',
         fontStyle: 'italic',
+        textAlign: 'center',
         marginTop: 5,
     },
     // Estilos dos Objetivos
@@ -1063,6 +831,6 @@ const styles = StyleSheet.create({
     confirmButtonText: {
         color: 'white',
         fontSize: 16,
-        fontWeight: '600',
+        fontWeight: 'bold',
     },
 });

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, TextInput, Modal } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, TextInput, Modal, Image, Animated } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth, db } from '../controller';
@@ -9,10 +9,15 @@ export default function Profile() {
   const [nomeUsuario, setNomeUsuario] = useState('Usuário');
   const [nomePinguim, setNomePinguim] = useState('Pinguim');
   const [avatarSelecionado, setAvatarSelecionado] = useState('🐧');
+  const [corMascote, setCorMascote] = useState('azul');
   const [modalEditVisible, setModalEditVisible] = useState(false);
   const [novoNomeUsuario, setNovoNomeUsuario] = useState('');
   const [novoNomePinguim, setNovoNomePinguim] = useState('');
   const [novoAvatar, setNovoAvatar] = useState('🐧');
+  const [novaCorMascote, setNovaCorMascote] = useState('azul');
+  
+  // Animações
+  const pinguimScaleAnim = useRef(new Animated.Value(1)).current;
   
   // Estados das tasks sincronizadas
   const [totalObjetivos, setTotalObjetivos] = useState(0);
@@ -22,16 +27,25 @@ export default function Profile() {
 
   const avatarsDisponiveis = ['🐧', '🦈', '🦊', '🐨', '🐼', '🦁', '🐯', '🐸', '🦄', '🐱', '🐶', '🐻'];
 
+  // Imagens dos pinguins
+  const imagensPinguim = {
+    azul: require('../assets/azul.png'),
+    verde: require('../assets/verde.png'),
+    vermelho: require('../assets/vermelho.png'),
+  };
+
+  const cores = [
+    { id: 'azul', nome: 'Azul', cor: '#2196F3', emoji: '💙' },
+    { id: 'verde', nome: 'Verde', cor: '#4CAF50', emoji: '💚' },
+    { id: 'vermelho', nome: 'Vermelho', cor: '#F44336', emoji: '❤️' },
+  ];
+
   const calcularPontosDisponiveis = async (objetivos) => {
     try {
-      // Pontos ganhos das tasks do Firestore
       const pontosGanhos = objetivos
         .filter(obj => obj.finalizado)
         .reduce((total, obj) => total + (obj.pontos || 5), 0);
       
-      console.log('Profile - Pontos ganhos calculados:', pontosGanhos);
-      
-      // Pontos gastos - tenta carregar do Firestore primeiro
       let pontosGastos = 0;
       const userId = auth.currentUser?.uid;
       if (userId) {
@@ -41,24 +55,19 @@ export default function Profile() {
           if (docSnap.exists()) {
             const data = docSnap.data();
             pontosGastos = data.pontosGastos || 0;
-            console.log('Profile - Pontos gastos carregados do Firestore:', pontosGastos);
           }
         } catch (error) {
           console.log('Profile - Erro ao carregar pontos gastos do Firestore:', error);
         }
       }
       
-      // Fallback: carrega do AsyncStorage se não encontrou no Firestore
       if (pontosGastos === 0) {
         const gastosData = await AsyncStorage.getItem('pontosGastos');
         pontosGastos = gastosData ? parseInt(gastosData) : 0;
-        console.log('Profile - Pontos gastos carregados do AsyncStorage:', pontosGastos);
       }
       
-      // Pontos disponíveis
       const pontosDisponiveis = pontosGanhos - pontosGastos;
-      console.log('Profile - Pontos disponíveis:', pontosDisponiveis);
-      setPontosDisponiveis(Math.max(0, pontosDisponiveis)); // Garante que não seja negativo
+      setPontosDisponiveis(Math.max(0, pontosDisponiveis));
     } catch (error) {
       console.log('Profile - Erro ao calcular pontos disponíveis:', error);
     }
@@ -81,7 +90,6 @@ export default function Profile() {
   useEffect(() => {
     carregarDados();
     
-    // Carrega dados iniciais do Firestore
     const carregarDadosIniciais = async () => {
       const userId = auth.currentUser?.uid;
       if (userId) {
@@ -91,9 +99,13 @@ export default function Profile() {
           if (docSnap.exists()) {
             const data = docSnap.data();
             const objetivos = data.objetivos || [];
-            console.log('Profile - Dados iniciais carregados:', objetivos.length, 'objetivos');
             carregarTasks(objetivos);
             calcularPontosDisponiveis(objetivos);
+            
+            // Carrega a cor do mascote
+            if (data.corMascote) {
+              setCorMascote(data.corMascote);
+            }
           }
         } catch (error) {
           console.log('Profile - Erro ao carregar dados iniciais:', error);
@@ -103,7 +115,6 @@ export default function Profile() {
     
     carregarDadosIniciais();
     
-    // Atualiza pontos gastos periodicamente (para sincronizar com compras na Shop)
     const interval = setInterval(async () => {
       const userId = auth.currentUser?.uid;
       if (userId) {
@@ -126,37 +137,31 @@ export default function Profile() {
     };
   }, []);
 
-  // Listener do Firestore - recria quando a tela recebe foco
   useFocusEffect(
     React.useCallback(() => {
       const userId = auth.currentUser?.uid;
       
       if (!userId) {
-        console.log('Profile - userId não disponível');
         return;
       }
 
-      console.log('Profile - Configurando listener do Firestore para userId:', userId);
-
-      // Listener em tempo real para os objetivos do Firestore
       const unsubscribe = onSnapshot(doc(db, "users", userId), (docSnap) => {
-        console.log('Profile - Firestore atualizado:', docSnap.exists());
         if (docSnap.exists()) {
           const data = docSnap.data();
           const objetivos = data.objetivos || [];
-          console.log('Profile - Objetivos recebidos:', objetivos.length, 'objetivos');
-          console.log('Profile - Objetivos finalizados:', objetivos.filter(obj => obj.finalizado).length);
           carregarTasks(objetivos);
           calcularPontosDisponiveis(objetivos);
-        } else {
-          console.log('Profile - Documento não existe no Firestore');
+          
+          // Atualiza a cor do mascote
+          if (data.corMascote) {
+            setCorMascote(data.corMascote);
+          }
         }
       }, (error) => {
         console.log('Profile - Erro ao carregar dados do Firestore:', error);
       });
 
       return () => {
-        console.log('Profile - Removendo listener do Firestore');
         unsubscribe();
       };
     }, [])
@@ -166,7 +171,6 @@ export default function Profile() {
     try {
       const userId = auth.currentUser?.uid;
       if (userId) {
-        // Tenta carregar do Firestore primeiro
         const userDocRef = doc(db, "users", userId);
         const docSnap = await getDoc(userDocRef);
         
@@ -176,9 +180,8 @@ export default function Profile() {
             setNomeUsuario(data.nomeUsuario);
             setNomePinguim(data.nomePinguim || 'Pinguim');
             setAvatarSelecionado(data.avatar || '🐧');
-            console.log('Profile - Dados carregados do Firestore');
+            setCorMascote(data.corMascote || 'azul');
             
-            // Sincroniza com AsyncStorage
             const userData = {
               nomeUsuario: data.nomeUsuario,
               nomePinguim: data.nomePinguim || 'Pinguim',
@@ -190,26 +193,47 @@ export default function Profile() {
         }
       }
       
-      // Fallback: carrega do AsyncStorage
       const userData = await AsyncStorage.getItem('userData');
       if (userData) {
         const dados = JSON.parse(userData);
         setNomeUsuario(dados.nomeUsuario);
         setNomePinguim(dados.nomePinguim);
         setAvatarSelecionado(dados.avatar || '🐧');
-        console.log('Profile - Dados carregados do AsyncStorage');
+      }
+      
+      const corSalva = await AsyncStorage.getItem('corMascote');
+      if (corSalva) {
+        setCorMascote(corSalva);
       }
     } catch (error) {
       console.log('Profile - Erro ao carregar dados:', error);
     }
   };
 
-
   const abrirModalEdicao = () => {
     setNovoNomeUsuario(nomeUsuario);
     setNovoNomePinguim(nomePinguim);
     setNovoAvatar(avatarSelecionado);
+    setNovaCorMascote(corMascote);
     setModalEditVisible(true);
+  };
+
+  const selecionarCor = (cor) => {
+    setNovaCorMascote(cor.id);
+    // Animação ao trocar
+    Animated.sequence([
+      Animated.timing(pinguimScaleAnim, {
+        toValue: 0.85,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.spring(pinguimScaleAnim, {
+        toValue: 1,
+        tension: 20,
+        friction: 3,
+        useNativeDriver: true,
+      })
+    ]).start();
   };
 
   const salvarEdicao = async () => {
@@ -229,11 +253,13 @@ export default function Profile() {
         nomeUsuario: novoNomeUsuario.trim(),
         nomePinguim: novoNomePinguim.trim(),
         avatar: novoAvatar,
+        corMascote: novaCorMascote,
         dataRegistro: new Date().toISOString()
       };
       
-      // Salva no AsyncStorage (para compatibilidade)
+      // Salva no AsyncStorage
       await AsyncStorage.setItem('userData', JSON.stringify(userData));
+      await AsyncStorage.setItem('corMascote', novaCorMascote);
       
       // Salva no Firestore
       const userDocRef = doc(db, "users", userId);
@@ -244,6 +270,7 @@ export default function Profile() {
           nomeUsuario: userData.nomeUsuario,
           nomePinguim: userData.nomePinguim,
           avatar: userData.avatar,
+          corMascote: novaCorMascote,
           ultimaAtualizacao: new Date().toISOString()
         });
         console.log('Profile - Dados atualizados no Firestore');
@@ -263,6 +290,7 @@ export default function Profile() {
       setNomeUsuario(novoNomeUsuario.trim());
       setNomePinguim(novoNomePinguim.trim());
       setAvatarSelecionado(novoAvatar);
+      setCorMascote(novaCorMascote);
       setModalEditVisible(false);
       
     } catch (error) {
@@ -445,7 +473,7 @@ export default function Profile() {
         </View>
       </ScrollView>
 
-      {/* Modal de Edição Melhorado */}
+      {/* Modal de Edição Melhorado com Cor do Pinguim */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -461,69 +489,116 @@ export default function Profile() {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.avatarSelectionSection}>
-              <Text style={styles.avatarSelectionLabel}>Escolha seu avatar</Text>
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false}
-                style={styles.avatarScroll}
-              >
-                {avatarsDisponiveis.map((avatar, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.avatarOption,
-                      novoAvatar === avatar && styles.avatarOptionSelected
-                    ]}
-                    onPress={() => setNovoAvatar(avatar)}
-                  >
-                    <Text style={styles.avatarOptionEmoji}>{avatar}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Preview do Pinguim com Cor Selecionada */}
+              <View style={styles.pinguimPreviewSection}>
+                <Text style={styles.previewLabel}>Preview do {novoNomePinguim || 'Pinguim'}</Text>
+                <Animated.View 
+                  style={[
+                    styles.pinguimPreviewContainer,
+                    { transform: [{ scale: pinguimScaleAnim }] }
+                  ]}
+                >
+                  <Image
+                    style={styles.pinguimPreviewImage}
+                    source={imagensPinguim[novaCorMascote]}
+                  />
+                </Animated.View>
+              </View>
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>👤 Seu nome</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Digite seu nome"
-                placeholderTextColor="#95A5A6"
-                value={novoNomeUsuario}
-                onChangeText={setNovoNomeUsuario}
-                autoCapitalize="words"
-              />
-            </View>
+              {/* Seleção de Cor do Pinguim */}
+              <View style={styles.colorSelectionSection}>
+                <Text style={styles.colorSelectionLabel}>🎨 Cor do Pinguim</Text>
+                <View style={styles.coresContainer}>
+                  {cores.map((cor) => (
+                    <TouchableOpacity
+                      key={cor.id}
+                      style={[
+                        styles.corItem,
+                        { borderColor: cor.cor },
+                        novaCorMascote === cor.id && styles.corSelecionada
+                      ]}
+                      onPress={() => selecionarCor(cor)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={[styles.corCirculo, { backgroundColor: cor.cor }]}>
+                        <Text style={styles.corEmoji}>{cor.emoji}</Text>
+                      </View>
+                      <Text style={styles.corNome}>{cor.nome}</Text>
+                      {novaCorMascote === cor.id && (
+                        <Text style={styles.corCheckmark}>✓</Text>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>🐧 Nome do pinguim</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Nome do pinguim"
-                placeholderTextColor="#95A5A6"
-                value={novoNomePinguim}
-                onChangeText={setNovoNomePinguim}
-                autoCapitalize="words"
-              />
-            </View>
+              {/* Seleção de Avatar */}
+              <View style={styles.avatarSelectionSection}>
+                <Text style={styles.avatarSelectionLabel}>😊 Escolha seu avatar</Text>
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.avatarScroll}
+                >
+                  {avatarsDisponiveis.map((avatar, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={[
+                        styles.avatarOption,
+                        novoAvatar === avatar && styles.avatarOptionSelected
+                      ]}
+                      onPress={() => setNovoAvatar(avatar)}
+                    >
+                      <Text style={styles.avatarOptionEmoji}>{avatar}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
 
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setModalEditVisible(false)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.cancelButtonText}>Cancelar</Text>
-              </TouchableOpacity>
+              {/* Campos de Texto */}
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>👤 Seu nome</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Digite seu nome"
+                  placeholderTextColor="#95A5A6"
+                  value={novoNomeUsuario}
+                  onChangeText={setNovoNomeUsuario}
+                  autoCapitalize="words"
+                />
+              </View>
 
-              <TouchableOpacity
-                style={[styles.modalButton, styles.confirmButton]}
-                onPress={salvarEdicao}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.confirmButtonText}>Salvar ✓</Text>
-              </TouchableOpacity>
-            </View>
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>🐧 Nome do pinguim</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Nome do pinguim"
+                  placeholderTextColor="#95A5A6"
+                  value={novoNomePinguim}
+                  onChangeText={setNovoNomePinguim}
+                  autoCapitalize="words"
+                />
+              </View>
+
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.cancelButton]}
+                  onPress={() => setModalEditVisible(false)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.cancelButtonText}>Cancelar</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.confirmButton]}
+                  onPress={salvarEdicao}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.confirmButtonText}>Salvar ✓</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -843,7 +918,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 25,
+    marginBottom: 20,
   },
   modalTitle: {
     fontSize: 24,
@@ -855,6 +930,90 @@ const styles = StyleSheet.create({
     color: '#7F8C8D',
     fontWeight: '300',
   },
+  // Preview do Pinguim
+  pinguimPreviewSection: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  previewLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2C3E50',
+    marginBottom: 12,
+  },
+  pinguimPreviewContainer: {
+    backgroundColor: '#F0F9FF',
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 3,
+    borderColor: '#BFDBFE',
+    alignItems: 'center',
+    shadowColor: '#2196F3',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  pinguimPreviewImage: {
+    width: 100,
+    height: 150,
+    resizeMode: 'contain',
+  },
+  // Seleção de Cor
+  colorSelectionSection: {
+    marginBottom: 20,
+  },
+  colorSelectionLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2C3E50',
+    marginBottom: 12,
+  },
+  coresContainer: {
+    gap: 12,
+  },
+  corItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 3,
+    borderColor: 'transparent',
+    gap: 12,
+  },
+  corSelecionada: {
+    backgroundColor: '#F0F9FF',
+    borderWidth: 3,
+    transform: [{ scale: 1.02 }],
+  },
+  corCirculo: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 4,
+  },
+  corEmoji: {
+    fontSize: 24,
+  },
+  corNome: {
+    flex: 1,
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  corCheckmark: {
+    fontSize: 22,
+    color: '#4CAF50',
+    fontWeight: 'bold',
+  },
+  // Seleção de Avatar
   avatarSelectionSection: {
     marginBottom: 20,
   },
@@ -881,10 +1040,12 @@ const styles = StyleSheet.create({
   avatarOptionSelected: {
     backgroundColor: '#E8F5E9',
     borderColor: '#4CAF50',
+    transform: [{ scale: 1.1 }],
   },
   avatarOptionEmoji: {
     fontSize: 32,
   },
+  // Inputs
   inputContainer: {
     marginBottom: 18,
   },
@@ -904,10 +1065,12 @@ const styles = StyleSheet.create({
     borderColor: '#E9ECEF',
     fontWeight: '500',
   },
+  // Botões do Modal
   modalButtons: {
     flexDirection: 'row',
     gap: 12,
     marginTop: 10,
+    marginBottom: 10,
   },
   modalButton: {
     flex: 1,
