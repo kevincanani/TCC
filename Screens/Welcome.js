@@ -49,6 +49,25 @@ export default function Welcome({ navigation, route }) {
         iniciarTela();
     }, []);
 
+    useEffect(() => {
+  const adicionarCampoFaltante = async () => {
+    try {
+      const userId = auth.currentUser?.uid;
+      if (userId) {
+        const userDocRef = doc(db, "users", userId);
+        await updateDoc(userDocRef, {
+          acessorioMascote: ''
+        });
+        console.log('✅ Campo acessorioMascote adicionado!');
+      }
+    } catch (error) {
+      console.log('Erro ao adicionar campo:', error);
+    }
+  };
+  
+  adicionarCampoFaltante();
+}, []);
+
     const iniciarTela = async () => {
         // Inicia animação
         Animated.parallel([

@@ -114,6 +114,23 @@ export default function Home() {
     };
 
     useEffect(() => {
+  const limparDadosAntigos = async () => {
+    try {
+      await AsyncStorage.removeItem('acessorioMascote');
+      await AsyncStorage.removeItem('pontosGastos');
+      await AsyncStorage.removeItem('itensComprados');
+      console.log('✅ Dados antigos limpos!');
+    } catch (error) {
+      console.log('Erro ao limpar:', error);
+    }
+  };
+
+  limparDadosAntigos();
+  carregarDadosMascote();
+  carregarNomeMascote();
+}, []);
+
+    useEffect(() => {
         carregarDadosMascote();
         carregarNomeMascote();
     }, []);

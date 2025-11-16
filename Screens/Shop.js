@@ -125,19 +125,30 @@ export default function Shop() {
 
   const purchaseItem = async (item) => {
     console.log('Shop - 🛍️ Iniciando compra:', item.name);
+    console.log('Shop - 🔍 Verificando condições...');
+    console.log('Shop -    Item ID:', item.id);
+    console.log('Shop -    Itens comprados:', itensComprados);
+    console.log('Shop -    Já comprado?', itensComprados.includes(item.id));
+    console.log('Shop -    Pontos usuário:', pontosUsuario);
+    console.log('Shop -    Preço item:', item.price);
+    console.log('Shop -    Pode comprar?', pontosUsuario >= item.price);
     
     if (itensComprados.includes(item.id)) {
+      console.log('Shop - ❌ Item já comprado!');
       Alert.alert('Já comprado!', 'Você já possui este item! 😊');
       return;
     }
   
     if (pontosUsuario < item.price) {
+      console.log('Shop - ❌ Pontos insuficientes!');
       Alert.alert(
         'Pontos insuficientes! ⚡', 
         `Você precisa de ${item.price} pontos, mas tem apenas ${pontosUsuario} pontos.\n\nComplete mais tarefas para ganhar pontos!`
       );
       return;
     }
+    
+    console.log('Shop - ✅ Verificações passaram, mostrando Alert...');
   
     Alert.alert(
       'Confirmar compra?',
