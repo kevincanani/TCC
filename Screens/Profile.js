@@ -7,6 +7,8 @@ import { doc, onSnapshot, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { AlertCustom } from '../AlertCustom';
 
+import Entypo from '@expo/vector-icons/Entypo';
+
 export default function Profile({ navigation }) {
   const [nomeUsuario, setNomeUsuario] = useState('Usuário');
   const [nomePinguim, setNomePinguim] = useState('Pinguim');
@@ -375,7 +377,7 @@ export default function Profile({ navigation }) {
               style={styles.logoutButton}
               onPress={handleLogout}
             >
-              <Text style={styles.logoutIcon}>🚪</Text>
+              <Text style={styles.logoutIcon}> <Entypo name="back" size={24} color="black" /> </Text>
             </TouchableOpacity>
           </View>
         </View>
