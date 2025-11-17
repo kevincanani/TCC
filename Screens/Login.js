@@ -21,7 +21,7 @@ export default function Login({navigation}) {
         <View style={styles.containerLogin}>
             <Text style={styles.textTitle}>Login</Text>
 
-            <Image style={styles.img} source={require('../assets/logo.png')}/>
+            <Image style={styles.img} source={require('../assets/logo_platlist.png')}/>
 
             <View style={styles.viewInput}>
                 <TextInput

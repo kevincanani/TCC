@@ -390,7 +390,7 @@ export default function Welcome({ navigation, route }) {
             >
                 <Image 
                     style={styles.logo} 
-                    source={require('../assets/logo.png')}
+                    source={require('../assets/logo_platlist.png')}
                 />
                 
                 <Animated.View 

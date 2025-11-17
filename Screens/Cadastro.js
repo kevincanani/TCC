@@ -44,7 +44,7 @@ export default function Cadastro({ navigation }) {
         <View style={styles.containerCadastro}>
             <Text style={styles.textTitle}>Cadastro</Text>
 
-            <Image style={styles.img} source={require('../assets/logo.png')} />
+            <Image style={styles.img} source={require('../assets/logo_platlist.png')} />
 
             <Text style={styles.txt}>Se você ainda não possui uma conta,</Text>
             <Text style={styles.txt}>cadastre-se para acessar nossos serviços.</Text>

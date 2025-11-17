@@ -64,7 +64,7 @@ export default function SplashScreen({navigation}) {
             >
                 <Image 
                     style={styles.logo} 
-                    source={require('../assets/logo.png')}
+                    source={require('../assets/logo_platlist.png')}
                 />
                 
                 <Text style={styles.appName}>Platlist</Text>
