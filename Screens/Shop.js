@@ -1,44 +1,40 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, Alert, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth, db } from '../controller';
-import { doc, onSnapshot, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, onSnapshot, getDoc, updateDoc, collection, getDocs } from 'firebase/firestore';
+
+import { AlertCustom, AlertProvider } from '../AlertCustom';
 
 export default function Shop() {
   const [pontosUsuario, setPontosUsuario] = useState(0);
   const [itensComprados, setItensComprados] = useState([]);
   const [pontosGastos, setPontosGastos] = useState(0);
+  const [shopItems, setShopItems] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const [shopItems] = useState([
-    {
-      id: 1,
-      name: 'Óculos de Festa',
-      categoria: 'Acessórios',
-      price: 15,
-      icon: '🕶️',
-      color: '#8B5CF6',
-      acessorio: 'oculos'
-    },
-    {
-      id: 2,
-      name: 'Chapéu de Aniversário',
-      categoria: 'Acessórios',
-      price: 20,
-      icon: '🎉',
-      color: '#06B6D4',
-      acessorio: 'chapeu'
-    },
-    {
-      id: 3,
-      name: 'Cachecol de Inverno',
-      categoria: 'Acessórios',
-      price: 25,
-      icon: '🧣',
-      color: '#F97316',
-      acessorio: 'gravata'
-    },
-  ]);
+  // Carrega os itens da coleção "items" do Firestore
+  const carregarItensLoja = async () => {
+    try {
+      console.log('Shop - 🔄 Carregando itens da loja do Firestore...');
+      const itemsCollection = collection(db, "items");
+      const itemsSnapshot = await getDocs(itemsCollection);
+      
+      const itensArray = itemsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      console.log('Shop - ✅ Itens carregados:', itensArray.length);
+      setShopItems(itensArray);
+      setLoading(false);
+    } catch (error) {
+      console.log('Shop - ❌ Erro ao carregar itens:', error);
+      AlertCustom.alert('Erro', 'Não foi possível carregar os itens da loja.');
+      setLoading(false);
+    }
+  };
 
   const calcularPontosDisponiveis = async (objetivos, gastosAtuais) => {
     try {
@@ -88,6 +84,7 @@ export default function Shop() {
   };
 
   useEffect(() => {
+    carregarItensLoja();
     carregarDados();
   }, []);
 
@@ -124,7 +121,7 @@ export default function Shop() {
   );
 
   const purchaseItem = async (item) => {
-    console.log('Shop - 🛍️ Iniciando compra:', item.name);
+    console.log('Shop - 🛒 Iniciando compra:', item.name);
     console.log('Shop - 🔍 Verificando condições...');
     console.log('Shop -    Item ID:', item.id);
     console.log('Shop -    Itens comprados:', itensComprados);
@@ -135,13 +132,13 @@ export default function Shop() {
     
     if (itensComprados.includes(item.id)) {
       console.log('Shop - ❌ Item já comprado!');
-      Alert.alert('Já comprado!', 'Você já possui este item! 😊');
+      AlertCustom.alert('Já comprado!', 'Você já possui este item! 😊');
       return;
     }
   
     if (pontosUsuario < item.price) {
       console.log('Shop - ❌ Pontos insuficientes!');
-      Alert.alert(
+      AlertCustom.alert(
         'Pontos insuficientes! ⚡', 
         `Você precisa de ${item.price} pontos, mas tem apenas ${pontosUsuario} pontos.\n\nComplete mais tarefas para ganhar pontos!`
       );
@@ -150,7 +147,7 @@ export default function Shop() {
     
     console.log('Shop - ✅ Verificações passaram, mostrando Alert...');
   
-    Alert.alert(
+    AlertCustom.alert(
       'Confirmar compra?',
       `Deseja comprar ${item.name} por ${item.price} pontos?`,
       [
@@ -161,7 +158,7 @@ export default function Shop() {
             try {
               const userId = auth.currentUser?.uid;
               if (!userId) {
-                Alert.alert('Erro', 'Usuário não autenticado!');
+                AlertCustom.alert('Erro', 'Usuário não autenticado!');
                 return;
               }
 
@@ -169,6 +166,12 @@ export default function Shop() {
               console.log('Shop -    Item:', item.name);
               console.log('Shop -    Acessório:', item.acessorio);
               console.log('Shop -    Preço:', item.price);
+              
+              // VERIFICAÇÃO: O acessório está definido?
+              if (!item.acessorio) {
+                AlertCustom.alert('Erro', 'Este item não possui um acessório definido. Entre em contato com o suporte.');
+                return;
+              }
               
               // 1. Calcula novos valores
               const novosPontosGastos = pontosGastos + item.price;
@@ -180,8 +183,15 @@ export default function Shop() {
               console.log('Shop -    Disponíveis:', pontosUsuario, '→', novosPontosDisponiveis);
               console.log('Shop -    Itens:', itensComprados, '→', novosItensComprados);
               
-              // 2. Salva TUDO de uma vez no Firestore
+              // 2. Busca a cor atual do mascote
               const userDocRef = doc(db, "users", userId);
+              const docSnap = await getDoc(userDocRef);
+              const corAtual = docSnap.exists() ? (docSnap.data().corMascote || 'azul') : 'azul';
+              
+              console.log('Shop -    Cor atual:', corAtual);
+              console.log('Shop -    Novo acessório:', item.acessorio);
+              
+              // 3. Salva TUDO de uma vez no Firestore
               await updateDoc(userDocRef, {
                 pontosGastos: novosPontosGastos,
                 itensComprados: novosItensComprados,
@@ -191,14 +201,14 @@ export default function Shop() {
               
               console.log('Shop - ✅ Dados salvos no Firestore!');
               
-              // 3. Salva também no AsyncStorage (backup)
+              // 4. Salva também no AsyncStorage (backup)
               await AsyncStorage.setItem('pontosGastos', novosPontosGastos.toString());
               await AsyncStorage.setItem('itensComprados', JSON.stringify(novosItensComprados));
               await AsyncStorage.setItem('acessorioMascote', item.acessorio);
               
               console.log('Shop - ✅ Dados salvos no AsyncStorage!');
               
-              // 4. Atualiza estados locais
+              // 5. Atualiza estados locais
               setPontosGastos(novosPontosGastos);
               setPontosUsuario(novosPontosDisponiveis);
               setItensComprados(novosItensComprados);
@@ -206,7 +216,7 @@ export default function Shop() {
               console.log('Shop - ✅ Estados locais atualizados!');
               
               // Mensagem de sucesso
-              Alert.alert(
+              AlertCustom.alert(
                 'Compra realizada! 🎉',
                 `Você comprou ${item.name}!\n\n💰 Gastou: ${item.price} pontos\n⚡ Restantes: ${novosPontosDisponiveis} pontos\n\n🎨 Volte para a Home para ver o novo visual!`,
                 [{ text: 'OK' }]
@@ -216,7 +226,7 @@ export default function Shop() {
               
             } catch (error) {
               console.log('Shop - ❌ Erro na compra:', error);
-              Alert.alert('Erro', 'Não foi possível completar a compra. Tente novamente!');
+              AlertCustom.alert('Erro', 'Não foi possível completar a compra. Tente novamente!');
             }
           }
         }
@@ -279,13 +289,25 @@ export default function Shop() {
     );
   };
 
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar backgroundColor="#9C27B0" barStyle="light-content" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#9C27B0" />
+          <Text style={styles.loadingText}>Carregando loja...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar backgroundColor="#9C27B0" barStyle="light-content" />
       
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <Text style={styles.headerTitle}>🛍️ Loja</Text>
+          <Text style={styles.headerTitle}>🛒 Loja</Text>
           <View style={styles.pontosDisplay}>
             <Text style={styles.pontosTexto}>{pontosUsuario}</Text>
             <Text style={styles.pontosIcone}>⚡</Text>
@@ -310,7 +332,13 @@ export default function Shop() {
 
         <Text style={styles.sectionTitle}>Todos os itens</Text>
         
-        {shopItems.map(renderShopItem)}
+        {shopItems.length > 0 ? (
+          shopItems.map(renderShopItem)
+        ) : (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>Nenhum item disponível no momento</Text>
+          </View>
+        )}
         
         <View style={styles.bottomSpace} />
       </ScrollView>
@@ -322,6 +350,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#ddffbc',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#ddffbc',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '600',
   },
   header: {
     backgroundColor: '#ddffbc',
@@ -521,6 +561,15 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#6B7280',
     fontWeight: '600',
+  },
+  emptyContainer: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#666',
+    fontStyle: 'italic',
   },
   bottomSpace: {
     height: 100,

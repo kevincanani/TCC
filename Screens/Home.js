@@ -5,6 +5,8 @@ import { auth, db } from '../controller';
 import { doc, getDoc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { AlertCustom, AlertProvider } from '../AlertCustom';
+
 export default function Home() {
     const [imagemAtual, setImagemAtual] = useState('azul');
     const [corMascote, setCorMascote] = useState('azul');
@@ -17,27 +19,38 @@ export default function Home() {
         azul: require('../assets/azul.png'),
         azul_chapeu: require('../assets/azul_chapeu.png'),
         azul_oculos: require('../assets/azul_oculos.png'),
-        azul_gravata: require('../assets/azul_cachecol.png'),
+        azul_cachecol: require('../assets/azul_cachecol.png'),
         
         // Verde
         verde: require('../assets/verde.png'),
         verde_chapeu: require('../assets/verde_chapeu.png'),
         verde_oculos: require('../assets/verde_oculos.png'),
-        verde_gravata: require('../assets/verde_cachecol.png'),
+        verde_cachecol: require('../assets/verde_cachecol.png'),
         
         // Vermelho
         vermelho: require('../assets/vermelho.png'),
         vermelho_chapeu: require('../assets/vermelho_chapeu.png'),
         vermelho_oculos: require('../assets/vermelho_oculos.png'),
-        vermelho_gravata: require('../assets/vermelho_cachecol.png'),
+        vermelho_cachecol: require('../assets/vermelho_cachecol.png'),
     };
 
     // Constrói o nome da imagem baseado na cor e acessório
     const construirNomeImagem = (cor, acessorio) => {
-        if (acessorio && acessorio.trim() !== '') {
-            return `${cor}_${acessorio}`;
-        }
-        return cor;
+        const corLimpa = cor?.trim() || 'azul';
+        const acessorioLimpo = acessorio?.trim() || '';
+        
+        const nomeImagem = acessorioLimpo !== '' ? `${corLimpa}_${acessorioLimpo}` : corLimpa;
+        
+        console.log('🎨 construirNomeImagem:', {
+            cor: cor,
+            corLimpa: corLimpa,
+            acessorio: acessorio,
+            acessorioLimpo: acessorioLimpo,
+            resultado: nomeImagem,
+            imagemExiste: !!imagens[nomeImagem]
+        });
+        
+        return nomeImagem;
     };
 
     const carregarDadosMascote = async () => {
@@ -152,7 +165,7 @@ export default function Home() {
         const userId = auth.currentUser?.uid;
         
         if (!userId) {
-            Alert.alert("Erro", "Usuário não autenticado!");
+            AlertCustom.alert("Erro", "Usuário não autenticado!");
             return;
         }
 
@@ -329,8 +342,8 @@ export default function Home() {
     };
 
     const adicionarObjetivo = () => {
-        if (objetivos.length >= 10) {
-            Alert.alert(
+        if (objetivos.length >= 12) {
+            AlertCustom.alert(
                 "Limite atingido", 
                 "Você atingiu o número máximo de 10 tarefas. Delete uma tarefa existente para adicionar uma nova.",
                 [{ text: "OK" }]
@@ -339,7 +352,7 @@ export default function Home() {
         }
 
         if (novoObjetivoNome.trim() === '') {
-            Alert.alert("Atenção", "Digite um nome para o objetivo!");
+            AlertCustom.alert("Atenção", "Digite um nome para o objetivo!");
             return;
         }
 

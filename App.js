@@ -19,10 +19,13 @@ import Profile from './Screens/Profile';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 
+import { AlertProvider } from './AlertCustom';
+
 
 function BottomTabs() {
   const Tab = createBottomTabNavigator();
   return(
+    <AlertProvider>
     <Tab.Navigator screenOptions={{
       // headerRight: (props)  => <Image style={{width: 50, height:50}} source={require('./assets/logo_petshop.png')}/>,
       headerStyle:{backgroundColor: '#4CAF50'},
@@ -44,6 +47,7 @@ function BottomTabs() {
         tabBarIcon: () => <FontAwesome6 name="person" size={24} color="black" />
       }}/>
     </Tab.Navigator>
+    </AlertProvider>
   )
 }
 
@@ -51,6 +55,7 @@ export default function App() {
   const Stack = createStackNavigator();
 
   return (
+    <AlertProvider>
       <NavigationContainer>
         <Stack.Navigator initialRouteName="Splash"
         screenOptions={{
@@ -64,5 +69,6 @@ export default function App() {
           
         </Stack.Navigator>
       </NavigationContainer>
+      </AlertProvider>
   );
 }
