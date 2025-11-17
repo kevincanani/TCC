@@ -471,7 +471,7 @@ export default function Home() {
                     </View>
                     
                     <Text style={styles.imageLabel}>
-                        🧊 {nomePinguim}
+                        {nomePinguim}
                     </Text>
                     
                     <Text style={styles.dica}>

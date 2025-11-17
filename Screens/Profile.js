@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, TextInput, Modal, Image, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, TextInput, Modal, Image, Animated, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth, db } from '../controller';
 import { doc, onSnapshot, getDoc, updateDoc, setDoc } from 'firebase/firestore';
+import { signOut } from 'firebase/auth';
+import { AlertCustom } from '../AlertCustom';
 
-export default function Profile() {
+export default function Profile({ navigation }) {
   const [nomeUsuario, setNomeUsuario] = useState('Usuário');
   const [nomePinguim, setNomePinguim] = useState('Pinguim');
   const [avatarSelecionado, setAvatarSelecionado] = useState('🐧');
@@ -39,6 +41,49 @@ export default function Profile() {
     { id: 'verde', nome: 'Verde', cor: '#4CAF50', emoji: '💚' },
     { id: 'vermelho', nome: 'Vermelho', cor: '#F44336', emoji: '❤️' },
   ];
+
+  // FUNÇÃO DE LOGOUT
+  const handleLogout = () => {
+    AlertCustom.alert(
+      'Sair da conta',
+      'Tem certeza que deseja sair? Seus dados estarão salvos quando você voltar! 😊',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel'
+        },
+        {
+          text: 'Sair',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              console.log('🚪 Iniciando logout...');
+              
+              // 1. Faz logout do Firebase Auth
+              await signOut(auth);
+              console.log('✅ Logout do Firebase concluído');
+              
+              // 2. Limpa dados sensíveis do AsyncStorage (opcional)
+              // Mantenha os dados do usuário salvos para próximo login
+              // await AsyncStorage.clear(); // Use apenas se quiser limpar TUDO
+              
+              console.log('✅ Logout concluído com sucesso!');
+              
+              // 3. Navega para tela de Login
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Login' }],
+              });
+              
+            } catch (error) {
+              console.error('❌ Erro ao fazer logout:', error);
+              AlertCustom.alert('Erro', 'Não foi possível sair. Tente novamente!');
+            }
+          }
+        }
+      ]
+    );
+  };
 
   const calcularPontosDisponiveis = async (objetivos) => {
     try {
@@ -317,12 +362,22 @@ export default function Profile() {
             <Text style={styles.headerGreeting}>Olá,</Text>
             <Text style={styles.headerName}>{nomeUsuario}! 👋</Text>
           </View>
-          <TouchableOpacity 
-            style={styles.editButton}
-            onPress={abrirModalEdicao}
-          >
-            <Text style={styles.editIcon}>✏️</Text>
-          </TouchableOpacity>
+          
+          <View style={styles.headerButtons}>
+            <TouchableOpacity 
+              style={styles.editButton}
+              onPress={abrirModalEdicao}
+            >
+              <Text style={styles.editIcon}>✏️</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.logoutButton}
+              onPress={handleLogout}
+            >
+              <Text style={styles.logoutIcon}>🚪</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -643,6 +698,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginTop: 4,
   },
+  headerButtons: {
+    flexDirection: 'row',
+    gap: 10,
+  },
   editButton: {
     width: 48,
     height: 48,
@@ -653,8 +712,21 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.3)',
   },
+  logoutButton: {
+    width: 48,
+    height: 48,
+    backgroundColor: 'rgba(244, 67, 54, 0.3)',
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
   editIcon: {
     fontSize: 20,
+  },
+  logoutIcon: {
+    fontSize: 22,
   },
   content: {
     flex: 1,
