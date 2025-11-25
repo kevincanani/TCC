@@ -49,25 +49,6 @@ export default function Welcome({ navigation, route }) {
         iniciarTela();
     }, []);
 
-    useEffect(() => {
-    const adicionarCampoFaltante = async () => {
-        try {
-            const userId = auth.currentUser?.uid;
-            if (userId) {
-                const userDocRef = doc(db, "users", userId);
-                await updateDoc(userDocRef, {
-                    acessoriosMascote: []  // Array ao invés de string vazia
-                });
-                console.log('✅ Campo acessoriosMascote atualizado para array!');
-            }
-        } catch (error) {
-            console.log('Erro ao atualizar campo:', error);
-        }
-    };
-    
-    adicionarCampoFaltante();
-}, []);
-
     const iniciarTela = async () => {
         // Inicia animação
         Animated.parallel([

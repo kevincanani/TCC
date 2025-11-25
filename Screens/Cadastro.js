@@ -27,6 +27,7 @@ export default function Cadastro({ navigation }) {
                 pontosTotais: 0,
                 pontosGastos: 0,
                 itensComprados: [],
+                acessoriosMascote: [],
                 imagemMascote: 'bicho',
                 dataRegistro: new Date().toISOString(),
                 ultimaAtualizacao: new Date().toISOString()

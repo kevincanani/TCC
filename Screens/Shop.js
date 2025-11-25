@@ -39,17 +39,29 @@ export default function Shop() {
 
   const calcularPontosDisponiveis = async (objetivos, gastosAtuais) => {
     try {
-      const pontosGanhos = objetivos
-        .filter(obj => obj.finalizado)
-        .reduce((total, obj) => total + (obj.pontos || 5), 0);
+      const userId = auth.currentUser?.uid;
+      if (!userId) return;
+
+      const docRef = doc(db, "users", userId);
+      const docSnap = await getDoc(docRef);
+      
+      let pontosGanhos = 0;
+      
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        // MESMA LÓGICA DO HOME E PROFILE
+        pontosGanhos = (data.pontosTotaisAcumulados || 0) + 
+                      objetivos.filter(obj => obj.finalizado).reduce((total, obj) => total + (obj.pontos || 5), 0);
+      }
       
       const pontosDisponiveis = pontosGanhos - gastosAtuais;
       console.log('Shop - 💰 Pontos: Ganhos =', pontosGanhos, '| Gastos =', gastosAtuais, '| Disponíveis =', pontosDisponiveis);
       setPontosUsuario(Math.max(0, pontosDisponiveis));
+      
     } catch (error) {
       console.log('Shop - Erro ao calcular pontos:', error);
     }
-  };
+};
 
   const carregarDados = async () => {
     try {

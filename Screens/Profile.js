@@ -89,50 +89,58 @@ export default function Profile({ navigation }) {
 
   const calcularPontosDisponiveis = async (objetivos) => {
     try {
-      const pontosGanhos = objetivos
-        .filter(obj => obj.finalizado)
-        .reduce((total, obj) => total + (obj.pontos || 5), 0);
-      
-      let pontosGastos = 0;
       const userId = auth.currentUser?.uid;
-      if (userId) {
-        try {
-          const docRef = doc(db, "users", userId);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            pontosGastos = data.pontosGastos || 0;
-          }
-        } catch (error) {
-          console.log('Profile - Erro ao carregar pontos gastos do Firestore:', error);
-        }
-      }
+      if (!userId) return;
+
+      const docRef = doc(db, "users", userId);
+      const docSnap = await getDoc(docRef);
       
-      if (pontosGastos === 0) {
-        const gastosData = await AsyncStorage.getItem('pontosGastos');
-        pontosGastos = gastosData ? parseInt(gastosData) : 0;
+      let pontosGanhos = 0;
+      let pontosGastos = 0;
+      
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        // MESMA LÓGICA DO HOME
+        pontosGanhos = (data.pontosTotaisAcumulados || 0) + 
+                      objetivos.filter(obj => obj.finalizado).reduce((total, obj) => total + obj.pontos, 0);
+        pontosGastos = data.pontosGastos || 0;
       }
       
       const pontosDisponiveis = pontosGanhos - pontosGastos;
       setPontosDisponiveis(Math.max(0, pontosDisponiveis));
+      
     } catch (error) {
       console.log('Profile - Erro ao calcular pontos disponíveis:', error);
     }
-  };
+};
 
-  const carregarTasks = (objetivos) => {
+  const carregarTasks = async (objetivos) => {
     try {
+      const userId = auth.currentUser?.uid;
+      if (!userId) return;
+
+      const docRef = doc(db, "users", userId);
+      const docSnap = await getDoc(docRef);
+      
       const total = objetivos.length;
       const finalizados = objetivos.filter(t => t.finalizado).length;
-      const pontos = objetivos.filter(t => t.finalizado).reduce((sum, t) => sum + (t.pontos || 5), 0);
+      
+      // Calcula pontos GANHOS (acumulados + pendentes)
+      let pontosGanhosTotais = 0;
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        pontosGanhosTotais = (data.pontosTotaisAcumulados || 0) + 
+                            objetivos.filter(t => t.finalizado).reduce((sum, t) => sum + (t.pontos || 5), 0);
+      }
       
       setTotalObjetivos(total);
       setObjetivosFinalizados(finalizados);
-      setPontosGanhos(pontos);
+      setPontosGanhos(pontosGanhosTotais);
+      
     } catch (error) {
       console.log('Erro ao carregar tasks:', error);
     }
-  };
+};
 
   useEffect(() => {
     carregarDados();

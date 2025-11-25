@@ -361,34 +361,29 @@ setImagemAtual(nomeImagem);
                 return;
             }
 
-            const pontosGanhos = novosObjetivos
+            // Calcula apenas os pontos das tarefas PENDENTES finalizadas
+            const pontosPendentes = novosObjetivos
                 .filter(obj => obj.finalizado)
                 .reduce((total, obj) => total + obj.pontos, 0);
-
-            console.log('Home - Salvando objetivos no Firestore:', novosObjetivos.length, 'objetivos');
-            console.log('Home - Pontos ganhos:', pontosGanhos);
 
             const docRef = doc(db, "users", userId);
             const docSnap = await getDoc(docRef);
             
             const dadosParaSalvar = {
                 objetivos: novosObjetivos,
-                pontosTotais: pontosGanhos,
+                pontosTotais: pontosPendentes, // Pontos apenas das tarefas atuais
                 ultimaAtualizacao: new Date().toISOString()
+                // NÃO toca em pontosTotaisAcumulados aqui
             };
 
             if (docSnap.exists()) {
                 await updateDoc(docRef, dadosParaSalvar);
-                console.log('Home - Objetivos atualizados no Firestore');
             } else {
                 await setDoc(docRef, dadosParaSalvar, { merge: true });
-                console.log('Home - Documento criado no Firestore');
             }
             
-            console.log('Home - Objetivos salvos com sucesso no Firestore');
         } catch (error) {
             console.log('Home - Erro ao salvar objetivos:', error);
-            console.log('Home - Detalhes do erro:', error.message);
         }
     };
 
@@ -406,42 +401,40 @@ setImagemAtual(nomeImagem);
 
     const calcularPontosDisponiveis = async () => {
         try {
-            const pontosGanhos = objetivos.filter(objetivo => objetivo.finalizado).reduce((total, objetivo) => total + objetivo.pontos, 0);
-            
-            let pontosGastos = 0;
             const userId = auth.currentUser?.uid;
-            if (userId) {
-                try {
-                    const docRef = doc(db, "users", userId);
-                    const docSnap = await getDoc(docRef);
-                    if (docSnap.exists()) {
-                        const data = docSnap.data();
-                        pontosGastos = data.pontosGastos || 0;
-                    }
-                } catch (error) {
-                    console.log('Home - Erro ao carregar pontos gastos do Firestore:', error);
-                }
-            }
+            if (!userId) return;
+
+            const docRef = doc(db, "users", userId);
+            const docSnap = await getDoc(docRef);
             
-            if (pontosGastos === 0) {
-                const gastosData = await AsyncStorage.getItem('pontosGastos');
-                pontosGastos = gastosData ? parseInt(gastosData) : 0;
+            let pontosGanhos = 0;
+            let pontosGastos = 0;
+            
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                // Usa pontos acumulados + pontos das tarefas pendentes finalizadas
+                pontosGanhos = (data.pontosTotaisAcumulados || 0) + 
+                            objetivos.filter(obj => obj.finalizado).reduce((total, obj) => total + obj.pontos, 0);
+                pontosGastos = data.pontosGastos || 0;
             }
             
             const disponiveis = pontosGanhos - pontosGastos;
             setPontosDisponiveis(disponiveis);
+            
         } catch (error) {
             console.log('Home - Erro ao calcular pontos:', error);
         }
     };
 
     const toggleObjetivo = (objetivoId) => {
-        const novosObjetivos = objetivos.map(objetivo =>
-            objetivo.id === objetivoId ? { ...objetivo, finalizado: !objetivo.finalizado } : objetivo
-        );
-        setObjetivos(novosObjetivos);
-        salvarObjetivosFirestore(novosObjetivos);
-    };
+    const objetivo = objetivos.find(obj => obj.id === objetivoId);
+    
+    // Se está marcando como finalizado, completa e remove
+    if (!objetivo.finalizado) {
+        completarObjetivo(objetivoId);
+    }
+    // Não permite desmarcar tarefas finalizadas
+};
 
     const deleteObjetivo = (objetivoId) => {
         const novosObjetivos = objetivos.filter(objetivo => objetivo.id !== objetivoId);
@@ -481,6 +474,54 @@ setImagemAtual(nomeImagem);
         salvarObjetivosFirestore(novosObjetivos);
         fecharModal();
     };
+
+    const completarObjetivo = async (objetivoId) => {
+    const objetivo = objetivos.find(obj => obj.id === objetivoId);
+    
+    if (!objetivo || objetivo.finalizado) return;
+    
+    try {
+        const userId = auth.currentUser?.uid;
+        if (!userId) return;
+
+        const docRef = doc(db, "users", userId);
+        const docSnap = await getDoc(docRef);
+        
+        // Pega os pontos totais já acumulados
+        let pontosTotaisAcumulados = 0;
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            pontosTotaisAcumulados = data.pontosTotaisAcumulados || 0;
+        }
+        
+        // ADICIONA os novos pontos aos já acumulados
+        const novoTotal = pontosTotaisAcumulados + objetivo.pontos;
+        
+        // Remove a tarefa da lista
+        const objetivosFiltrados = objetivos.filter(obj => obj.id !== objetivoId);
+        
+        // Salva no Firestore
+        await updateDoc(docRef, {
+            objetivos: objetivosFiltrados,
+            pontosTotaisAcumulados: novoTotal, // Novo campo acumulativo
+            ultimaAtualizacao: new Date().toISOString()
+        });
+        
+        // Atualiza o estado local
+        setObjetivos(objetivosFiltrados);
+        
+        // Exibe alerta de conclusão
+        AlertCustom.alert(
+            "🎉 Tarefa Completa!", 
+            `Parabéns! Você ganhou ${objetivo.pontos} pontos por completar "${objetivo.title}"!`,
+            [{ text: "OK" }]
+        );
+        
+    } catch (error) {
+        console.log('Erro ao completar objetivo:', error);
+        AlertCustom.alert("Erro", "Não foi possível completar a tarefa.");
+    }
+};
 
     const fecharModal = () => {
         setModalVisible(false);
