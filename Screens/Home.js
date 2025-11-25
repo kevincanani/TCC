@@ -189,18 +189,18 @@ setImagemAtual(nomeImagem);
     };
 
     useEffect(() => {
-  const limparDadosAntigos = async () => {
-    try {
-      await AsyncStorage.removeItem('acessorioMascote');
-      await AsyncStorage.removeItem('pontosGastos');
-      await AsyncStorage.removeItem('itensComprados');
-      console.log('✅ Dados antigos limpos!');
-    } catch (error) {
-      console.log('Erro ao limpar:', error);
-    }
-  };
+//   const limparDadosAntigos = async () => {
+//     try {
+//       await AsyncStorage.removeItem('acessorioMascote');
+//       await AsyncStorage.removeItem('pontosGastos');
+//       await AsyncStorage.removeItem('itensComprados');
+//       console.log('✅ Dados antigos limpos!');
+//     } catch (error) {
+//       console.log('Erro ao limpar:', error);
+//     }
+//   };
 
-  limparDadosAntigos();
+//   limparDadosAntigos();
   carregarDadosMascote();
   carregarNomeMascote();
 }, []);

@@ -108,7 +108,7 @@ export default function Welcome({ navigation, route }) {
                 
                 // Aguarda mais um pouco e vai para Home
                 setTimeout(() => {
-                    navigation.replace('Home');
+                    navigation.replace('Main');
                 }, 1500);
             } else {
                 // Usuário novo - primeira vez
@@ -239,7 +239,7 @@ export default function Welcome({ navigation, route }) {
                 
                 // Navega para Home
                 setTimeout(() => {
-                    navigation.replace('Home');
+                    navigation.replace('Main');
                 }, 500);
             });
         } catch (error) {
