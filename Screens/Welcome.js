@@ -50,22 +50,22 @@ export default function Welcome({ navigation, route }) {
     }, []);
 
     useEffect(() => {
-  const adicionarCampoFaltante = async () => {
-    try {
-      const userId = auth.currentUser?.uid;
-      if (userId) {
-        const userDocRef = doc(db, "users", userId);
-        await updateDoc(userDocRef, {
-          acessorioMascote: ''
-        });
-        console.log('✅ Campo acessorioMascote adicionado!');
-      }
-    } catch (error) {
-      console.log('Erro ao adicionar campo:', error);
-    }
-  };
-  
-  adicionarCampoFaltante();
+    const adicionarCampoFaltante = async () => {
+        try {
+            const userId = auth.currentUser?.uid;
+            if (userId) {
+                const userDocRef = doc(db, "users", userId);
+                await updateDoc(userDocRef, {
+                    acessoriosMascote: []  // Array ao invés de string vazia
+                });
+                console.log('✅ Campo acessoriosMascote atualizado para array!');
+            }
+        } catch (error) {
+            console.log('Erro ao atualizar campo:', error);
+        }
+    };
+    
+    adicionarCampoFaltante();
 }, []);
 
     const iniciarTela = async () => {
@@ -186,9 +186,9 @@ export default function Welcome({ navigation, route }) {
             const userData = {
                 nomeUsuario: nomeUsuario.trim(),
                 nomePinguim: nomePinguim.trim(),
-                avatar: '🐧',
+                avatar: '🧊',
                 corMascote: corSelecionada,
-                acessorioMascote: '',
+                acessoriosMascote: [],  // Array vazio ao invés de string
                 dataRegistro: new Date().toISOString()
             };
             

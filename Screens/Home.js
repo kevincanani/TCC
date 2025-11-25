@@ -10,107 +10,169 @@ import { AlertCustom, AlertProvider } from '../AlertCustom';
 export default function Home() {
     const [imagemAtual, setImagemAtual] = useState('azul');
     const [corMascote, setCorMascote] = useState('azul');
-    const [acessorioAtual, setAcessorioAtual] = useState('');
+    const [acessorioAtual, setAcessorioAtual] = useState([]);
     const [nomePinguim, setNomePinguim] = useState('Pinguim');
 
     // Todas as combinações de cores e acessórios
     const imagens = {
-        // Azul
         azul: require('../assets/azul.png'),
+
         azul_chapeu: require('../assets/azul_chapeu.png'),
         azul_oculos: require('../assets/azul_oculos.png'),
         azul_cachecol: require('../assets/azul_cachecol.png'),
+
+        azul_chapeu_oculos: require('../assets/azul_chapeu_oculos.png'),
+        azul_cachecol_chapeu: require('../assets/azul_cachecol_chapeu.png'),
+        azul_cachecol_oculos: require('../assets/azul_cachecol_oculos.png'),
+
+        azul_cachecol_chapeu_oculos: require('../assets/azul_cachecol_chapeu_oculos.png'),
         
-        // Verde
+
         verde: require('../assets/verde.png'),
+
         verde_chapeu: require('../assets/verde_chapeu.png'),
         verde_oculos: require('../assets/verde_oculos.png'),
         verde_cachecol: require('../assets/verde_cachecol.png'),
+
+        verde_chapeu_oculos: require('../assets/verde_chapeu_oculos.png'),
+        verde_cachecol_chapeu: require('../assets/verde_cachecol_chapeu.png'),
+        verde_cachecol_oculos: require('../assets/verde_cachecol_oculos.png'),
+
+        verde_cachecol_chapeu_oculos: require('../assets/verde_cachecol_chapeu_oculos.png'),
         
-        // Vermelho
+
         vermelho: require('../assets/vermelho.png'),
+
         vermelho_chapeu: require('../assets/vermelho_chapeu.png'),
         vermelho_oculos: require('../assets/vermelho_oculos.png'),
         vermelho_cachecol: require('../assets/vermelho_cachecol.png'),
+
+        vermelho_chapeu_oculos: require('../assets/vermelho_chapeu_oculos.png'),
+        vermelho_cachecol_chapeu: require('../assets/vermelho_cachecol_chapeu.png'),
+        vermelho_cachecol_oculos: require('../assets/vermelho_cachecol_oculos.png'),
+
+        vermelho_cachecol_chapeu_oculos: require('../assets/vermelho_cachecol_chapeu_oculos.png'),
     };
 
     // Constrói o nome da imagem baseado na cor e acessório
-    const construirNomeImagem = (cor, acessorio) => {
-        const corLimpa = cor?.trim() || 'azul';
-        const acessorioLimpo = acessorio?.trim() || '';
-        
-        const nomeImagem = acessorioLimpo !== '' ? `${corLimpa}_${acessorioLimpo}` : corLimpa;
-        
-        console.log('🎨 construirNomeImagem:', {
-            cor: cor,
-            corLimpa: corLimpa,
-            acessorio: acessorio,
-            acessorioLimpo: acessorioLimpo,
-            resultado: nomeImagem,
-            imagemExiste: !!imagens[nomeImagem]
-        });
-        
-        return nomeImagem;
-    };
+    const construirNomeImagem = (cor, acessorios) => {
+    const corLimpa = cor?.trim() || 'azul';
+    
+    // Se acessorios for undefined, null ou string vazia, retorna só a cor
+    if (!acessorios) {
+        return corLimpa;
+    }
+    
+    // Se for string vazia, retorna só a cor
+    if (typeof acessorios === 'string' && acessorios.trim() === '') {
+        return corLimpa;
+    }
+    
+    // Converte para array se necessário
+    let acessoriosArray = [];
+    if (typeof acessorios === 'string') {
+        // Se for string não vazia, divide por vírgula
+        acessoriosArray = acessorios.split(',').map(a => a.trim()).filter(a => a !== '');
+    } else if (Array.isArray(acessorios)) {
+        // Se já for array, filtra valores vazios
+        acessoriosArray = acessorios.filter(a => a && a.trim && a.trim() !== '');
+    }
+    
+    // Se não houver acessórios no array, retorna só a cor
+    if (acessoriosArray.length === 0) {
+        return corLimpa;
+    }
+    
+    // Ordena os acessórios alfabeticamente para garantir consistência
+    const acessoriosOrdenados = [...acessoriosArray].sort();
+    
+    // Constrói o nome: cor_acessorio1_acessorio2_acessorio3
+    const nomeImagem = `${corLimpa}_${acessoriosOrdenados.join('_')}`;
+    
+    console.log('🎨 construirNomeImagem:', {
+        cor: cor,
+        acessoriosRecebidos: acessorios,
+        tipoAcessorios: typeof acessorios,
+        acessoriosArray: acessoriosArray,
+        resultado: nomeImagem,
+        imagemExiste: !!imagens[nomeImagem]
+    });
+    
+    return nomeImagem;
+};
 
     const carregarDadosMascote = async () => {
-        try {
-            const userId = auth.currentUser?.uid;
-            if (userId) {
-                const userDocRef = doc(db, "users", userId);
-                const docSnap = await getDoc(userDocRef);
+    try {
+        const userId = auth.currentUser?.uid;
+        if (userId) {
+            const userDocRef = doc(db, "users", userId);
+            const docSnap = await getDoc(userDocRef);
+            
+            if (docSnap.exists()) {
+                const data = docSnap.data();
                 
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    
-                    // Carrega a cor do mascote
-                    if (data.corMascote) {
-                        const corSalva = data.corMascote.trim();
-                        console.log('Home - Cor carregada do Firestore:', corSalva);
-                        setCorMascote(corSalva);
-                    }
-                    
-                    // Carrega o acessório atual
-                    if (data.acessorioMascote !== undefined) {
-                        const acessorioSalvo = data.acessorioMascote ? data.acessorioMascote.trim() : '';
-                        console.log('Home - Acessório carregado do Firestore:', acessorioSalvo);
-                        setAcessorioAtual(acessorioSalvo);
-                    } else {
-                        setAcessorioAtual('');
-                    }
-                    
-                    // Atualiza a imagem com base na cor e acessório
-                    const nomeImagem = construirNomeImagem(
-                        data.corMascote || 'azul',
-                        data.acessorioMascote || ''
-                    );
-                    console.log('Home - Atualizando para imagem:', nomeImagem);
-                    setImagemAtual(nomeImagem);
-                    
-                    return;
+                // Carrega a cor do mascote
+                if (data.corMascote) {
+                    const corSalva = data.corMascote.trim();
+                    console.log('Home - Cor carregada do Firestore:', corSalva);
+                    setCorMascote(corSalva);
                 }
+                
+                // Carrega os acessórios (agora é array)
+                if (data.acessoriosMascote !== undefined) {
+                    const acessoriosSalvos = Array.isArray(data.acessoriosMascote) 
+                        ? data.acessoriosMascote 
+                        : [];
+                    console.log('Home - Acessórios carregados do Firestore:', acessoriosSalvos);
+                    setAcessorioAtual(acessoriosSalvos);
+                } else {
+                    setAcessorioAtual([]);
+                }
+                
+                // Atualiza a imagem
+                const nomeImagem = construirNomeImagem(
+                    data.corMascote || 'azul',
+                    data.acessoriosMascote || []
+                );
+                console.log('Home - Atualizando para imagem:', nomeImagem);
+                setImagemAtual(nomeImagem);
+                
+                return;
             }
-            
-            // Fallback: carrega do AsyncStorage
-            const corSalva = await AsyncStorage.getItem('corMascote');
-            const acessorioSalvo = await AsyncStorage.getItem('acessorioMascote');
-            
-            if (corSalva) {
-                setCorMascote(corSalva);
-            }
-            if (acessorioSalvo) {
-                setAcessorioAtual(acessorioSalvo);
-            }
-            
-            const nomeImagem = construirNomeImagem(
-                corSalva || 'azul',
-                acessorioSalvo || ''
-            );
-            setImagemAtual(nomeImagem);
-        } catch (error) {
-            console.log('Home - Erro ao carregar dados do mascote:', error);
         }
-    };
+
+        // Fallback: carrega do AsyncStorage
+const corSalva = await AsyncStorage.getItem('corMascote');
+const acessorioSalvo = await AsyncStorage.getItem('acessorioMascote');
+
+if (corSalva) {
+    setCorMascote(corSalva);
+}
+
+// Converte acessório salvo para array
+let acessoriosArray = [];
+if (acessorioSalvo) {
+    try {
+        // Tenta parsear como JSON (caso seja array)
+        acessoriosArray = JSON.parse(acessorioSalvo);
+    } catch {
+        // Se falhar, trata como string
+        if (acessorioSalvo.trim() !== '') {
+            acessoriosArray = [acessorioSalvo];
+        }
+    }
+}
+setAcessorioAtual(acessoriosArray);
+
+const nomeImagem = construirNomeImagem(
+    corSalva || 'azul',
+    acessoriosArray
+);
+setImagemAtual(nomeImagem);
+    } catch (error) {
+        console.log('Home - Erro ao carregar dados do mascote:', error);
+    }
+};
 
     const carregarNomeMascote = async () => {
         try {
@@ -180,19 +242,23 @@ export default function Home() {
                     setCorMascote(corLimpa);
                 }
                 
-                // Atualiza acessório do mascote
-                if (data.acessorioMascote !== undefined) {
-                    const acessorioLimpo = data.acessorioMascote ? data.acessorioMascote.trim() : '';
-                    console.log('Home - Firestore: Novo acessório recebido:', acessorioLimpo);
-                    setAcessorioAtual(acessorioLimpo);
+                // Atualiza acessórios do mascote (array)
+                if (data.acessoriosMascote !== undefined) {
+                    const acessoriosLimpos = Array.isArray(data.acessoriosMascote) 
+                        ? data.acessoriosMascote 
+                        : [];
+                    console.log('Home - Firestore: Novos acessórios recebidos:', acessoriosLimpos);
+                    setAcessorioAtual(acessoriosLimpos);
                 } else {
-                    setAcessorioAtual('');
+                    setAcessorioAtual([]);
                 }
 
-                // Após atualizar cor e acessório
+                // Atualiza imagem
                 const corFinal = data.corMascote ? data.corMascote.trim() : corMascote;
-                const acessorioFinal = data.acessorioMascote !== undefined ? (data.acessorioMascote ? data.acessorioMascote.trim() : '') : '';
-                const novaImagem = construirNomeImagem(corFinal, acessorioFinal);
+                const acessoriosFinal = data.acessoriosMascote !== undefined 
+                    ? (Array.isArray(data.acessoriosMascote) ? data.acessoriosMascote : [])
+                    : [];
+                const novaImagem = construirNomeImagem(corFinal, acessoriosFinal);
                 console.log('Home - Atualizando imagem para:', novaImagem);
                 setImagemAtual(novaImagem);
                 
@@ -244,6 +310,48 @@ export default function Home() {
 
         return () => unsubscribe();
     }, []);
+
+    useEffect(() => {
+    const migrarAcessoriosParaArray = async () => {
+        try {
+            const userId = auth.currentUser?.uid;
+            if (!userId) return;
+
+            const userDocRef = doc(db, "users", userId);
+            const docSnap = await getDoc(userDocRef);
+            
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                
+                // Se acessorioMascote existe (string antiga) e acessoriosMascote não existe
+                if (data.acessorioMascote !== undefined && !data.acessoriosMascote) {
+                    console.log('🔄 Migrando acessórios de string para array...');
+                    
+                    let acessoriosArray = [];
+                    if (data.acessorioMascote && data.acessorioMascote.trim() !== '') {
+                        // Converte a string em array (divide por vírgula caso tenha)
+                        acessoriosArray = data.acessorioMascote
+                            .split(',')
+                            .map(a => a.trim())
+                            .filter(a => a !== '');
+                    }
+                    
+                    await updateDoc(userDocRef, {
+                        acessoriosMascote: acessoriosArray,
+                        // Remove o campo antigo
+                        acessorioMascote: null
+                    });
+                    
+                    console.log('✅ Migração concluída! Acessórios:', acessoriosArray);
+                }
+            }
+        } catch (error) {
+            console.log('Erro na migração:', error);
+        }
+    };
+
+    migrarAcessoriosParaArray();
+}, []);
 
     const salvarObjetivosFirestore = async (novosObjetivos) => {
         try {
