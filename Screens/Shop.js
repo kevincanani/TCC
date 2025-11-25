@@ -13,11 +13,12 @@ export default function Shop() {
   const [pontosGastos, setPontosGastos] = useState(0);
   const [shopItems, setShopItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [acessoriosEquipados, setAcessoriosEquipados] = useState([]);
 
   // Carrega os itens da coleção "items" do Firestore
   const carregarItensLoja = async () => {
     try {
-      console.log('Shop - 🔄 Carregando itens da loja do Firestore...');
+      console.log('Shop - 📄 Carregando itens da loja do Firestore...');
       const itemsCollection = collection(db, "items");
       const itemsSnapshot = await getDocs(itemsCollection);
       
@@ -38,50 +39,71 @@ export default function Shop() {
 
   const calcularPontosDisponiveis = async (objetivos, gastosAtuais) => {
     try {
-      const pontosGanhos = objetivos
-        .filter(obj => obj.finalizado)
-        .reduce((total, obj) => total + (obj.pontos || 5), 0);
+      const userId = auth.currentUser?.uid;
+      if (!userId) return;
+
+      const docRef = doc(db, "users", userId);
+      const docSnap = await getDoc(docRef);
+      
+      let pontosGanhos = 0;
+      
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        // MESMA LÓGICA DO HOME E PROFILE
+        pontosGanhos = (data.pontosTotaisAcumulados || 0) + 
+                      objetivos.filter(obj => obj.finalizado).reduce((total, obj) => total + (obj.pontos || 5), 0);
+      }
       
       const pontosDisponiveis = pontosGanhos - gastosAtuais;
       console.log('Shop - 💰 Pontos: Ganhos =', pontosGanhos, '| Gastos =', gastosAtuais, '| Disponíveis =', pontosDisponiveis);
       setPontosUsuario(Math.max(0, pontosDisponiveis));
+      
     } catch (error) {
       console.log('Shop - Erro ao calcular pontos:', error);
     }
-  };
+};
 
   const carregarDados = async () => {
     try {
-      const userId = auth.currentUser?.uid;
-      if (!userId) {
-        console.log('Shop - ❌ UserId não disponível');
-        return;
-      }
+        const userId = auth.currentUser?.uid;
+        if (!userId) {
+            console.log('Shop - ❌ UserId não disponível');
+            return;
+        }
 
-      console.log('Shop - 🔄 Carregando dados do Firestore...');
-      const docRef = doc(db, "users", userId);
-      const docSnap = await getDoc(docRef);
-      
-      if (docSnap.exists()) {
-        const data = docSnap.data();
+        console.log('Shop - 🔄 Carregando dados do Firestore...');
+        const docRef = doc(db, "users", userId);
+        const docSnap = await getDoc(docRef);
         
-        const objetivos = data.objetivos || [];
-        const gastos = data.pontosGastos || 0;
-        const itens = data.itensComprados || [];
-        
-        console.log('Shop - ✅ Dados carregados:');
-        console.log('Shop -    Objetivos:', objetivos.length);
-        console.log('Shop -    Gastos:', gastos);
-        console.log('Shop -    Itens comprados:', itens);
-        
-        setPontosGastos(gastos);
-        setItensComprados(itens);
-        await calcularPontosDisponiveis(objetivos, gastos);
-      }
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            
+            const objetivos = data.objetivos || [];
+            const gastos = data.pontosGastos || 0;
+            const itens = data.itensComprados || [];
+            const acessorios = Array.isArray(data.acessoriosMascote) 
+                ? data.acessoriosMascote 
+                : [];
+            
+            console.log('Shop - ✅ Dados carregados do Firestore:');
+            console.log('Shop -    Objetivos:', objetivos.length);
+            console.log('Shop -    Gastos:', gastos);
+            console.log('Shop -    Itens comprados:', itens);
+            console.log('Shop -    Acessórios equipados:', acessorios);
+            
+            setPontosGastos(gastos);
+            setItensComprados(itens);
+            setAcessoriosEquipados(acessorios);
+            
+            await calcularPontosDisponiveis(objetivos, gastos);
+        } else {
+            console.log('Shop - ⚠️ Documento do usuário não existe');
+            setAcessoriosEquipados([]);
+        }
     } catch (error) {
-      console.log('Shop - ❌ Erro ao carregar dados:', error);
+        console.log('Shop - ❌ Erro ao carregar dados:', error);
     }
-  };
+};
 
   useEffect(() => {
     carregarItensLoja();
@@ -102,13 +124,22 @@ export default function Shop() {
           const objetivos = data.objetivos || [];
           const gastos = data.pontosGastos || 0;
           const itens = data.itensComprados || [];
+          const acessorios = Array.isArray(data.acessoriosMascote) 
+              ? data.acessoriosMascote 
+              : [];
+
+          console.log('Shop -    Acessórios:', acessorios);
+
+          setAcessoriosEquipados(acessorios);
           
           console.log('Shop - 🔔 Firestore atualizado:');
           console.log('Shop -    Gastos:', gastos);
           console.log('Shop -    Itens:', itens);
+          //console.log('Shop -    Acessório:', acessorio);
           
           setPontosGastos(gastos);
           setItensComprados(itens);
+          //setAcessorioEquipado(acessorio);
           calcularPontosDisponiveis(objetivos, gastos);
         }
       });
@@ -119,6 +150,58 @@ export default function Shop() {
       };
     }, [])
   );
+
+  const equiparAcessorio = async (item) => {
+    try {
+        const userId = auth.currentUser?.uid;
+        if (!userId) {
+            AlertCustom.alert('Erro', 'Usuário não autenticado!');
+            return;
+        }
+
+        console.log('Shop - 🎨 Equipando/Desequipando acessório...');
+        console.log('Shop -    Acessórios atuais:', acessoriosEquipados);
+        console.log('Shop -    Acessório do item:', item.acessorio);
+
+        const jaEquipado = acessoriosEquipados.includes(item.acessorio);
+        
+        let novosAcessorios;
+        if (jaEquipado) {
+            novosAcessorios = acessoriosEquipados.filter(a => a !== item.acessorio);
+        } else {
+            novosAcessorios = [...acessoriosEquipados, item.acessorio];
+        }
+        
+        console.log('Shop -    Novos acessórios:', novosAcessorios);
+
+        // Salva no Firestore
+        const userDocRef = doc(db, "users", userId);
+        await updateDoc(userDocRef, {
+            acessoriosMascote: novosAcessorios,
+            ultimaAtualizacao: new Date().toISOString()
+        });
+        console.log('Shop - ✅ Acessórios salvos no Firestore:', novosAcessorios);
+
+        // Atualiza estado local
+        setAcessoriosEquipados(novosAcessorios);
+
+        // Mensagens de feedback (sem mudanças)
+        if (jaEquipado) {
+            AlertCustom.alert(
+                'Acessório removido! 👕',
+                `${item.name} foi desequipado.\n\n✨ Volte para a Home para ver a mudança!`
+            );
+        } else {
+            AlertCustom.alert(
+                'Acessório equipado! 🎉',
+                `${item.name} foi equipado com sucesso!\n\n✨ Volte para a Home para ver o novo visual!`
+            );
+        }
+    } catch (error) {
+        console.log('Shop - ❌ Erro ao equipar/desequipar acessório:', error);
+        AlertCustom.alert('Erro', 'Não foi possível equipar o acessório. Tente novamente!');
+    }
+};
 
   const purchaseItem = async (item) => {
     console.log('Shop - 🛒 Iniciando compra:', item.name);
@@ -183,32 +266,23 @@ export default function Shop() {
               console.log('Shop -    Disponíveis:', pontosUsuario, '→', novosPontosDisponiveis);
               console.log('Shop -    Itens:', itensComprados, '→', novosItensComprados);
               
-              // 2. Busca a cor atual do mascote
+              // 2. Salva no Firestore (sem equipar automaticamente)
               const userDocRef = doc(db, "users", userId);
-              const docSnap = await getDoc(userDocRef);
-              const corAtual = docSnap.exists() ? (docSnap.data().corMascote || 'azul') : 'azul';
-              
-              console.log('Shop -    Cor atual:', corAtual);
-              console.log('Shop -    Novo acessório:', item.acessorio);
-              
-              // 3. Salva TUDO de uma vez no Firestore
               await updateDoc(userDocRef, {
                 pontosGastos: novosPontosGastos,
                 itensComprados: novosItensComprados,
-                acessorioMascote: item.acessorio,
                 ultimaAtualizacao: new Date().toISOString()
               });
               
               console.log('Shop - ✅ Dados salvos no Firestore!');
               
-              // 4. Salva também no AsyncStorage (backup)
+              // 3. Salva também no AsyncStorage (backup)
               await AsyncStorage.setItem('pontosGastos', novosPontosGastos.toString());
               await AsyncStorage.setItem('itensComprados', JSON.stringify(novosItensComprados));
-              await AsyncStorage.setItem('acessorioMascote', item.acessorio);
               
               console.log('Shop - ✅ Dados salvos no AsyncStorage!');
               
-              // 5. Atualiza estados locais
+              // 4. Atualiza estados locais
               setPontosGastos(novosPontosGastos);
               setPontosUsuario(novosPontosDisponiveis);
               setItensComprados(novosItensComprados);
@@ -218,7 +292,7 @@ export default function Shop() {
               // Mensagem de sucesso
               AlertCustom.alert(
                 'Compra realizada! 🎉',
-                `Você comprou ${item.name}!\n\n💰 Gastou: ${item.price} pontos\n⚡ Restantes: ${novosPontosDisponiveis} pontos\n\n🎨 Volte para a Home para ver o novo visual!`,
+                `Você comprou ${item.name}!\n\n💰 Gastou: ${item.price} pontos\n⚡ Restantes: ${novosPontosDisponiveis} pontos\n\n👕 Toque em "Equipar" para usar o acessório!`,
                 [{ text: 'OK' }]
               );
               
@@ -237,17 +311,24 @@ export default function Shop() {
   const renderShopItem = (item) => {
     const foiComprado = itensComprados.includes(item.id);
     const podeComprar = pontosUsuario >= item.price;
+    const estaEquipado = acessoriosEquipados.includes(item.acessorio);  // Mudança aqui
 
     return (
       <TouchableOpacity
         key={item.id}
         style={[
           styles.shopItem,
-          foiComprado && styles.purchasedItem
+          foiComprado && styles.purchasedItem,
+          estaEquipado && styles.equippedItem
         ]}
-        onPress={() => purchaseItem(item)}
+        onPress={() => {
+          if (foiComprado) {
+            equiparAcessorio(item);
+          } else {
+            purchaseItem(item);
+          }
+        }}
         activeOpacity={0.8}
-        disabled={foiComprado}
       >
         <View style={styles.itemContent}>
           <View style={[styles.iconContainer, { backgroundColor: item.color + '20' }]}>
@@ -255,28 +336,40 @@ export default function Shop() {
           </View>
           
           <View style={styles.itemInfo}>
-            <Text style={[styles.itemName, foiComprado && styles.itemNameComprado]}>
+            <Text style={[
+              styles.itemName, 
+              foiComprado && styles.itemNameComprado,
+              estaEquipado && styles.itemNameEquipado
+            ]}>
               {item.name}
             </Text>
             <Text style={styles.itemcategoria}>{item.categoria}</Text>
-            {foiComprado && (
+            {estaEquipado && (
+              <Text style={styles.itemEquipadoLabel}>⭐ Equipado</Text>
+            )}
+            {foiComprado && !estaEquipado && (
               <Text style={styles.itemCompradoLabel}>✓ Comprado</Text>
             )}
           </View>
 
           <View style={styles.itemRight}>
-            <View style={styles.priceContainer}>
-              <Text style={styles.priceText}>{item.price}</Text>
-              <Text style={styles.pontosIcone}>⚡</Text>
-            </View>
+            {!foiComprado && (
+              <View style={styles.priceContainer}>
+                <Text style={styles.priceText}>{item.price}</Text>
+                <Text style={styles.pontosIcone}>⚡</Text>
+              </View>
+            )}
             
             <View style={[
               styles.purchaseButton,
+              estaEquipado ? styles.equippedButton :
               foiComprado ? styles.ownedButton : 
               podeComprar ? styles.buyButton : styles.cantAffordButton
             ]}>
-              {foiComprado ? (
-                <Text style={styles.ownedText}>✓ Seu</Text>
+              {estaEquipado ? (
+                <Text style={styles.equippedText}>Remover</Text>
+              ) : foiComprado ? (
+                <Text style={styles.equipText}>Equipar</Text>
               ) : podeComprar ? (
                 <Text style={styles.buyText}>Comprar</Text>
               ) : (
@@ -326,7 +419,7 @@ export default function Shop() {
         <View style={styles.infoCard}>
           <Text style={styles.infoEmoji}>💡</Text>
           <Text style={styles.infoText}>
-            Compre acessórios para personalizar seu mascote!
+            Compre e equipe acessórios para personalizar seu mascote!
           </Text>
         </View>
 
@@ -465,6 +558,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8F5E9',
     borderColor: '#4CAF50',
   },
+  equippedItem: {
+    backgroundColor: '#FFF9C4',
+    borderColor: '#F9A825',
+    borderWidth: 3,
+  },
   itemContent: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -493,6 +591,10 @@ const styles = StyleSheet.create({
   itemNameComprado: {
     color: '#2E7D32',
   },
+  itemNameEquipado: {
+    color: '#F57F17',
+    fontWeight: 'bold',
+  },
   itemcategoria: {
     fontSize: 11,
     color: '#9CA3AF',
@@ -501,6 +603,11 @@ const styles = StyleSheet.create({
   itemCompradoLabel: {
     fontSize: 12,
     color: '#4CAF50',
+    fontWeight: 'bold',
+  },
+  itemEquipadoLabel: {
+    fontSize: 12,
+    color: '#F9A825',
     fontWeight: 'bold',
   },
   itemRight: {
@@ -544,6 +651,9 @@ const styles = StyleSheet.create({
   ownedButton: {
     backgroundColor: '#4CAF50',
   },
+  equippedButton: {
+    backgroundColor: '#F57C00',
+  },
   cantAffordButton: {
     backgroundColor: '#E5E7EB',
   },
@@ -552,7 +662,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: 'bold',
   },
-  ownedText: {
+  equipText: {
+    color: 'white',
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  equippedText: {
     color: 'white',
     fontSize: 12,
     fontWeight: 'bold',

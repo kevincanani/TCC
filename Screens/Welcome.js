@@ -49,25 +49,6 @@ export default function Welcome({ navigation, route }) {
         iniciarTela();
     }, []);
 
-    useEffect(() => {
-  const adicionarCampoFaltante = async () => {
-    try {
-      const userId = auth.currentUser?.uid;
-      if (userId) {
-        const userDocRef = doc(db, "users", userId);
-        await updateDoc(userDocRef, {
-          acessorioMascote: ''
-        });
-        console.log('✅ Campo acessorioMascote adicionado!');
-      }
-    } catch (error) {
-      console.log('Erro ao adicionar campo:', error);
-    }
-  };
-  
-  adicionarCampoFaltante();
-}, []);
-
     const iniciarTela = async () => {
         // Inicia animação
         Animated.parallel([
@@ -99,33 +80,41 @@ export default function Welcome({ navigation, route }) {
 
     const verificarDados = async () => {
         try {
-            const userData = await AsyncStorage.getItem('userData');
+            const userId = auth.currentUser?.uid;
             
-            if (userData) {
-                // Usuário já tem dados - voltando
-                setJaTemDados(true);
-                setMensagemBemVindo('Bem-vindo de volta!');
-                
-                // Aguarda mais um pouco e vai para Home
-                setTimeout(() => {
-                    navigation.replace('Home');
-                }, 1500);
-            } else {
-                // Usuário novo - primeira vez
-                setJaTemDados(false);
-                setMensagemBemVindo('Bem-vindo ao');
-                
-                // Mostra o modal após animação
-                setTimeout(() => {
-                    setModalVisible(true);
-                    setEtapaAtual('dados');
-                }, 500);
+            if (!userId) {
+                console.log('Welcome - Usuário não autenticado');
+                navigation.replace('Login');
+                return;
             }
+
+            const userDocRef = doc(db, "users", userId);
+            const docSnap = await getDoc(userDocRef);
+            
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                
+                if (data.nomeUsuario && data.nomePinguim) {
+                    console.log('Welcome - Usuário já cadastrado');
+                    setJaTemDados(true);
+                    setMensagemBemVindo('Bem-vindo de volta!');
+                    
+                    setTimeout(() => {
+                        navigation.replace('Main');
+                    }, 1500);
+                } else {
+                    // Dados incompletos - redireciona para login
+                    console.log('Welcome - Dados incompletos, redirecionando');
+                    navigation.replace('Login');
+                }
+            } else {
+                // Usuário não existe - redireciona para login
+                navigation.replace('Login');
+            }
+            
         } catch (error) {
             console.log('Erro ao verificar dados:', error);
-            // Em caso de erro, mostra o modal
-            setModalVisible(true);
-            setEtapaAtual('dados');
+            navigation.replace('Login');
         }
     };
 
@@ -168,7 +157,6 @@ export default function Welcome({ navigation, route }) {
 
     const finalizarCadastro = async () => {
         try {
-            // Animação de saída
             Animated.timing(fadeAnim, {
                 toValue: 0,
                 duration: 400,
@@ -186,13 +174,13 @@ export default function Welcome({ navigation, route }) {
             const userData = {
                 nomeUsuario: nomeUsuario.trim(),
                 nomePinguim: nomePinguim.trim(),
-                avatar: '🐧',
+                avatar: '🧊',
                 corMascote: corSelecionada,
-                acessorioMascote: '',
+                acessoriosMascote: [],
                 dataRegistro: new Date().toISOString()
             };
             
-            // Salva no AsyncStorage (para compatibilidade)
+            // Salva no AsyncStorage
             await AsyncStorage.setItem('userData', JSON.stringify(userData));
             await AsyncStorage.setItem('corMascote', corSelecionada);
             
@@ -201,31 +189,35 @@ export default function Welcome({ navigation, route }) {
             const docSnap = await getDoc(userDocRef);
             
             if (docSnap.exists()) {
-                // Atualiza documento existente
-                await updateDoc(userDocRef, {
-                    nomeUsuario: userData.nomeUsuario,
-                    nomePinguim: userData.nomePinguim,
-                    avatar: userData.avatar,
-                    corMascote: corSelecionada,
-                    acessorioMascote: '',
-                    ultimaAtualizacao: new Date().toISOString()
-                });
-                console.log('Welcome - Dados atualizados no Firestore');
+                // Se já existe, atualiza APENAS se não tiver nome ainda
+                const data = docSnap.data();
+                if (!data.nomeUsuario || !data.nomePinguim) {
+                    await updateDoc(userDocRef, {
+                        nomeUsuario: userData.nomeUsuario,
+                        nomePinguim: userData.nomePinguim,
+                        avatar: userData.avatar,
+                        corMascote: corSelecionada,
+                        // NÃO toca em acessoriosMascote
+                        ultimaAtualizacao: new Date().toISOString()
+                    });
+                    console.log('Welcome - Dados do usuário novo atualizados');
+                }
             } else {
-                // Cria documento se não existir
+                // Cria documento para usuário REALMENTE novo
                 await setDoc(userDocRef, {
                     email: auth.currentUser?.email || '',
                     ...userData,
                     objetivos: [],
                     pontosTotais: 0,
+                    pontosTotaisAcumulados: 0,
                     pontosGastos: 0,
                     itensComprados: [],
                     imagemMascote: 'bicho'
-                }, { merge: true });
-                console.log('Welcome - Documento criado no Firestore');
+                });
+                console.log('Welcome - Documento criado para novo usuário');
             }
             
-            // Animação de entrada da mensagem final
+            // Animação de conclusão
             Animated.sequence([
                 Animated.timing(fadeAnim, {
                     toValue: 1,
@@ -234,14 +226,13 @@ export default function Welcome({ navigation, route }) {
                 }),
                 Animated.delay(1500)
             ]).start(() => {
-                // Fecha modal
                 setModalVisible(false);
                 
-                // Navega para Home
                 setTimeout(() => {
-                    navigation.replace('Home');
+                    navigation.replace('Main');
                 }, 500);
             });
+            
         } catch (error) {
             console.log('Erro ao salvar dados:', error);
             alert('Erro ao salvar. Tente novamente!');

@@ -1,11 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, TextInput, Modal, Image, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, TextInput, Modal, Image, Animated, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth, db } from '../controller';
 import { doc, onSnapshot, getDoc, updateDoc, setDoc } from 'firebase/firestore';
+import { signOut } from 'firebase/auth';
+import { AlertCustom } from '../AlertCustom';
 
-export default function Profile() {
+import Entypo from '@expo/vector-icons/Entypo';
+
+export default function Profile({ navigation }) {
   const [nomeUsuario, setNomeUsuario] = useState('Usuário');
   const [nomePinguim, setNomePinguim] = useState('Pinguim');
   const [avatarSelecionado, setAvatarSelecionado] = useState('🐧');
@@ -40,52 +44,103 @@ export default function Profile() {
     { id: 'vermelho', nome: 'Vermelho', cor: '#F44336', emoji: '❤️' },
   ];
 
+  // FUNÇÃO DE LOGOUT
+  const handleLogout = () => {
+    AlertCustom.alert(
+      'Sair da conta',
+      'Tem certeza que deseja sair? Seus dados estarão salvos quando você voltar! 😊',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel'
+        },
+        {
+          text: 'Sair',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              console.log('🚪 Iniciando logout...');
+              
+              // 1. Faz logout do Firebase Auth
+              await signOut(auth);
+              console.log('✅ Logout do Firebase concluído');
+              
+              // 2. Limpa dados sensíveis do AsyncStorage (opcional)
+              // Mantenha os dados do usuário salvos para próximo login
+              // await AsyncStorage.clear(); // Use apenas se quiser limpar TUDO
+              
+              console.log('✅ Logout concluído com sucesso!');
+              
+              // 3. Navega para tela de Login
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Login' }],
+              });
+              
+            } catch (error) {
+              console.error('❌ Erro ao fazer logout:', error);
+              AlertCustom.alert('Erro', 'Não foi possível sair. Tente novamente!');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const calcularPontosDisponiveis = async (objetivos) => {
     try {
-      const pontosGanhos = objetivos
-        .filter(obj => obj.finalizado)
-        .reduce((total, obj) => total + (obj.pontos || 5), 0);
-      
-      let pontosGastos = 0;
       const userId = auth.currentUser?.uid;
-      if (userId) {
-        try {
-          const docRef = doc(db, "users", userId);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            pontosGastos = data.pontosGastos || 0;
-          }
-        } catch (error) {
-          console.log('Profile - Erro ao carregar pontos gastos do Firestore:', error);
-        }
-      }
+      if (!userId) return;
+
+      const docRef = doc(db, "users", userId);
+      const docSnap = await getDoc(docRef);
       
-      if (pontosGastos === 0) {
-        const gastosData = await AsyncStorage.getItem('pontosGastos');
-        pontosGastos = gastosData ? parseInt(gastosData) : 0;
+      let pontosGanhos = 0;
+      let pontosGastos = 0;
+      
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        // MESMA LÓGICA DO HOME
+        pontosGanhos = (data.pontosTotaisAcumulados || 0) + 
+                      objetivos.filter(obj => obj.finalizado).reduce((total, obj) => total + obj.pontos, 0);
+        pontosGastos = data.pontosGastos || 0;
       }
       
       const pontosDisponiveis = pontosGanhos - pontosGastos;
       setPontosDisponiveis(Math.max(0, pontosDisponiveis));
+      
     } catch (error) {
       console.log('Profile - Erro ao calcular pontos disponíveis:', error);
     }
-  };
+};
 
-  const carregarTasks = (objetivos) => {
+  const carregarTasks = async (objetivos) => {
     try {
+      const userId = auth.currentUser?.uid;
+      if (!userId) return;
+
+      const docRef = doc(db, "users", userId);
+      const docSnap = await getDoc(docRef);
+      
       const total = objetivos.length;
       const finalizados = objetivos.filter(t => t.finalizado).length;
-      const pontos = objetivos.filter(t => t.finalizado).reduce((sum, t) => sum + (t.pontos || 5), 0);
+      
+      // Calcula pontos GANHOS (acumulados + pendentes)
+      let pontosGanhosTotais = 0;
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        pontosGanhosTotais = (data.pontosTotaisAcumulados || 0) + 
+                            objetivos.filter(t => t.finalizado).reduce((sum, t) => sum + (t.pontos || 5), 0);
+      }
       
       setTotalObjetivos(total);
       setObjetivosFinalizados(finalizados);
-      setPontosGanhos(pontos);
+      setPontosGanhos(pontosGanhosTotais);
+      
     } catch (error) {
       console.log('Erro ao carregar tasks:', error);
     }
-  };
+};
 
   useEffect(() => {
     carregarDados();
@@ -317,12 +372,22 @@ export default function Profile() {
             <Text style={styles.headerGreeting}>Olá,</Text>
             <Text style={styles.headerName}>{nomeUsuario}! 👋</Text>
           </View>
-          <TouchableOpacity 
-            style={styles.editButton}
-            onPress={abrirModalEdicao}
-          >
-            <Text style={styles.editIcon}>✏️</Text>
-          </TouchableOpacity>
+          
+          <View style={styles.headerButtons}>
+            <TouchableOpacity 
+              style={styles.editButton}
+              onPress={abrirModalEdicao}
+            >
+              <Text style={styles.editIcon}>✏️</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.logoutButton}
+              onPress={handleLogout}
+            >
+              <Text style={styles.logoutIcon}> <Entypo name="back" size={24} color="black" /> </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -337,7 +402,7 @@ export default function Profile() {
           </View>
           
           <Text style={styles.profileNameLarge}>{nomeUsuario}</Text>
-          <Text style={styles.pinguimNameLarge}>🐧 {nomePinguim}</Text>
+          <Text style={styles.pinguimNameLarge}>{nomePinguim}</Text>
           
           {/* Stats Cards */}
           <View style={styles.statsRow}>
@@ -558,7 +623,7 @@ export default function Profile() {
 
               {/* Campos de Texto */}
               <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>👤 Seu nome</Text>
+                <Text style={styles.inputLabel}>Seu nome</Text>
                 <TextInput
                   style={styles.input}
                   placeholder="Digite seu nome"
@@ -570,10 +635,10 @@ export default function Profile() {
               </View>
 
               <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>🐧 Nome do pinguim</Text>
+                <Text style={styles.inputLabel}>Nome do mascote</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="Nome do pinguim"
+                  placeholder="Nome do mascote"
                   placeholderTextColor="#95A5A6"
                   value={novoNomePinguim}
                   onChangeText={setNovoNomePinguim}
@@ -643,6 +708,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginTop: 4,
   },
+  headerButtons: {
+    flexDirection: 'row',
+    gap: 10,
+  },
   editButton: {
     width: 48,
     height: 48,
@@ -653,8 +722,21 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.3)',
   },
+  logoutButton: {
+    width: 48,
+    height: 48,
+    backgroundColor: 'rgba(244, 67, 54, 0.3)',
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
   editIcon: {
     fontSize: 20,
+  },
+  logoutIcon: {
+    fontSize: 22,
   },
   content: {
     flex: 1,

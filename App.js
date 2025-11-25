@@ -65,7 +65,7 @@ export default function App() {
           <Stack.Screen name='Splash' component={SplashScreen} />
           <Stack.Screen name='Login' component={Login}/>
           <Stack.Screen name='Cadastro' component={Cadastro}/>
-          <Stack.Screen options={{headerShown:false}} name='Home' component={BottomTabs}/>
+          <Stack.Screen options={{headerShown:false}} name='Main' component={BottomTabs}/>
           
         </Stack.Navigator>
       </NavigationContainer>
