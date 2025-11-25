@@ -443,7 +443,7 @@ setImagemAtual(nomeImagem);
     };
 
     const adicionarObjetivo = () => {
-        if (objetivos.length >= 12) {
+        if (objetivos.length >= 10) {
             AlertCustom.alert(
                 "Limite atingido", 
                 "Você atingiu o número máximo de 10 tarefas. Delete uma tarefa existente para adicionar uma nova.",
@@ -588,15 +588,18 @@ setImagemAtual(nomeImagem);
         <SafeAreaView style={styles.container}>
             <StatusBar backgroundColor="#4CAF50" barStyle="light-content" />
             
-            <View style={styles.header}>
-                <View style={styles.headerTop}>
-                    <Text style={styles.headerTitle}>
-                        {remainingObjetivos} objetivos a serem finalizados hoje!
-                    </Text>
-                    <View style={styles.pontosHeader}>
-                        <Text style={styles.pontosHeaderText}>{pontosDisponiveis}</Text>
-                        <Text style={styles.pontosHeaderIcon}>⚡</Text>
-                    </View>
+            <View style={styles.headerTop}>
+                <Text style={styles.headerTitle}>
+                    {remainingObjetivos === 0 
+                        ? 'Nenhum objetivo a ser finalizado hoje!' 
+                        : remainingObjetivos === 1 
+                            ? '1 objetivo a ser finalizado hoje!' 
+                            : `${remainingObjetivos} objetivos a serem finalizados hoje!`
+                    }
+                </Text>
+                <View style={styles.pontosHeader}>
+                    <Text style={styles.pontosHeaderText}>{pontosDisponiveis}</Text>
+                    <Text style={styles.pontosHeaderIcon}>⚡</Text>
                 </View>
             </View>
 
@@ -738,10 +741,11 @@ const styles = StyleSheet.create({
     },
     headerTitle: {
         flex: 1,
-        fontSize: 20,
+        fontSize: 15,
         fontWeight: 'bold',
         color: 'white',
         marginRight: 12,
+        marginLeft: 12,
     },
     scrollView: {
         flex: 1,

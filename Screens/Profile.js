@@ -402,7 +402,7 @@ export default function Profile({ navigation }) {
           </View>
           
           <Text style={styles.profileNameLarge}>{nomeUsuario}</Text>
-          <Text style={styles.pinguimNameLarge}>🐧 {nomePinguim}</Text>
+          <Text style={styles.pinguimNameLarge}>{nomePinguim}</Text>
           
           {/* Stats Cards */}
           <View style={styles.statsRow}>
@@ -623,7 +623,7 @@ export default function Profile({ navigation }) {
 
               {/* Campos de Texto */}
               <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>👤 Seu nome</Text>
+                <Text style={styles.inputLabel}>Seu nome</Text>
                 <TextInput
                   style={styles.input}
                   placeholder="Digite seu nome"
@@ -635,10 +635,10 @@ export default function Profile({ navigation }) {
               </View>
 
               <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>🐧 Nome do pinguim</Text>
+                <Text style={styles.inputLabel}>Nome do mascote</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="Nome do pinguim"
+                  placeholder="Nome do mascote"
                   placeholderTextColor="#95A5A6"
                   value={novoNomePinguim}
                   onChangeText={setNovoNomePinguim}
