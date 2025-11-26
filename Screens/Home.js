@@ -4,6 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { auth, db } from '../controller';
 import { doc, getDoc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { collection, getDocs, arrayUnion } from 'firebase/firestore';
 
 import { AlertCustom, AlertProvider } from '../AlertCustom';
 
@@ -12,8 +13,9 @@ export default function Home() {
     const [corMascote, setCorMascote] = useState('azul');
     const [acessorioAtual, setAcessorioAtual] = useState([]);
     const [nomePinguim, setNomePinguim] = useState('Pinguim');
+    const [conquistas, setConquistas] = useState([]);
+    const [conquistasUsuario, setConquistasUsuario] = useState([]);
 
-    // Todas as combinações de cores e acessórios
     const imagens = {
         azul: require('../assets/azul.png'),
 
@@ -54,39 +56,30 @@ export default function Home() {
         vermelho_cachecol_chapeu_oculos: require('../assets/vermelho_cachecol_chapeu_oculos.png'),
     };
 
-    // Constrói o nome da imagem baseado na cor e acessório
     const construirNomeImagem = (cor, acessorios) => {
     const corLimpa = cor?.trim() || 'azul';
     
-    // Se acessorios for undefined, null ou string vazia, retorna só a cor
     if (!acessorios) {
         return corLimpa;
     }
     
-    // Se for string vazia, retorna só a cor
     if (typeof acessorios === 'string' && acessorios.trim() === '') {
         return corLimpa;
     }
     
-    // Converte para array se necessário
     let acessoriosArray = [];
     if (typeof acessorios === 'string') {
-        // Se for string não vazia, divide por vírgula
         acessoriosArray = acessorios.split(',').map(a => a.trim()).filter(a => a !== '');
     } else if (Array.isArray(acessorios)) {
-        // Se já for array, filtra valores vazios
         acessoriosArray = acessorios.filter(a => a && a.trim && a.trim() !== '');
     }
     
-    // Se não houver acessórios no array, retorna só a cor
     if (acessoriosArray.length === 0) {
         return corLimpa;
     }
     
-    // Ordena os acessórios alfabeticamente para garantir consistência
     const acessoriosOrdenados = [...acessoriosArray].sort();
     
-    // Constrói o nome: cor_acessorio1_acessorio2_acessorio3
     const nomeImagem = `${corLimpa}_${acessoriosOrdenados.join('_')}`;
     
     console.log('🎨 construirNomeImagem:', {
@@ -111,14 +104,12 @@ export default function Home() {
             if (docSnap.exists()) {
                 const data = docSnap.data();
                 
-                // Carrega a cor do mascote
                 if (data.corMascote) {
                     const corSalva = data.corMascote.trim();
                     console.log('Home - Cor carregada do Firestore:', corSalva);
                     setCorMascote(corSalva);
                 }
                 
-                // Carrega os acessórios (agora é array)
                 if (data.acessoriosMascote !== undefined) {
                     const acessoriosSalvos = Array.isArray(data.acessoriosMascote) 
                         ? data.acessoriosMascote 
@@ -129,7 +120,6 @@ export default function Home() {
                     setAcessorioAtual([]);
                 }
                 
-                // Atualiza a imagem
                 const nomeImagem = construirNomeImagem(
                     data.corMascote || 'azul',
                     data.acessoriosMascote || []
@@ -141,7 +131,6 @@ export default function Home() {
             }
         }
 
-        // Fallback: carrega do AsyncStorage
 const corSalva = await AsyncStorage.getItem('corMascote');
 const acessorioSalvo = await AsyncStorage.getItem('acessorioMascote');
 
@@ -149,14 +138,11 @@ if (corSalva) {
     setCorMascote(corSalva);
 }
 
-// Converte acessório salvo para array
 let acessoriosArray = [];
 if (acessorioSalvo) {
     try {
-        // Tenta parsear como JSON (caso seja array)
         acessoriosArray = JSON.parse(acessorioSalvo);
     } catch {
-        // Se falhar, trata como string
         if (acessorioSalvo.trim() !== '') {
             acessoriosArray = [acessorioSalvo];
         }
@@ -176,6 +162,20 @@ setImagemAtual(nomeImagem);
 
     const carregarNomeMascote = async () => {
         try {
+            const userId = auth.currentUser?.uid;
+            if (userId) {
+                const userDocRef = doc(db, "users", userId);
+                const docSnap = await getDoc(userDocRef);
+                
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    if (data.nomePinguim) {
+                        setNomePinguim(data.nomePinguim);
+                        return;
+                    }
+                }
+            }
+            
             const userData = await AsyncStorage.getItem('userData');
             if (userData) {
                 const dados = JSON.parse(userData);
@@ -206,8 +206,28 @@ setImagemAtual(nomeImagem);
 }, []);
 
     useEffect(() => {
+        const carregarEDebug = async () => {
+        await carregarConquistas();
+        console.log('🎮 Conquistas carregadas:', conquistas.length);
+        
+        const userId = auth.currentUser?.uid;
+        if (userId) {
+            const docRef = doc(db, "users", userId);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                console.log('📊 Debug Home - Dados do usuário:');
+                console.log('   - Tarefas completadas total:', data.tarefasCompletadasTotal);
+                console.log('   - Conquistas desbloqueadas:', data.conquistasDesbloqueadas);
+                console.log('   - Pontos acumulados:', data.pontosTotaisAcumulados);
+            }
+        }
+    };
+
         carregarDadosMascote();
         carregarNomeMascote();
+        carregarConquistas();
+        carregarEDebug();
     }, []);
 
     useFocusEffect(
@@ -225,24 +245,26 @@ setImagemAtual(nomeImagem);
 
     useEffect(() => {
         const userId = auth.currentUser?.uid;
-        
-        if (!userId) {
-            AlertCustom.alert("Erro", "Usuário não autenticado!");
-            return;
-        }
+    
+    if (!userId) {
+        AlertCustom.alert("Erro", "Usuário não autenticado!");
+        return;
+    }
 
-        const unsubscribe = onSnapshot(doc(db, "users", userId), (docSnap) => {
-            if (docSnap.exists()) {
-                const data = docSnap.data();
+    const unsubscribe = onSnapshot(doc(db, "users", userId), (docSnap) => {
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            
+            if (data.nomePinguim) {
+                setNomePinguim(data.nomePinguim);
+            }
                 
-                // Atualiza cor do mascote
                 if (data.corMascote) {
                     const corLimpa = data.corMascote.trim();
                     console.log('Home - Firestore: Nova cor recebida:', corLimpa);
                     setCorMascote(corLimpa);
                 }
                 
-                // Atualiza acessórios do mascote (array)
                 if (data.acessoriosMascote !== undefined) {
                     const acessoriosLimpos = Array.isArray(data.acessoriosMascote) 
                         ? data.acessoriosMascote 
@@ -253,7 +275,6 @@ setImagemAtual(nomeImagem);
                     setAcessorioAtual([]);
                 }
 
-                // Atualiza imagem
                 const corFinal = data.corMascote ? data.corMascote.trim() : corMascote;
                 const acessoriosFinal = data.acessoriosMascote !== undefined 
                     ? (Array.isArray(data.acessoriosMascote) ? data.acessoriosMascote : [])
@@ -262,7 +283,6 @@ setImagemAtual(nomeImagem);
                 console.log('Home - Atualizando imagem para:', novaImagem);
                 setImagemAtual(novaImagem);
                 
-                // Carrega os objetivos
                 if (data.objetivos && Array.isArray(data.objetivos)) {
                     setObjetivos(data.objetivos);
                 } else {
@@ -323,13 +343,11 @@ setImagemAtual(nomeImagem);
             if (docSnap.exists()) {
                 const data = docSnap.data();
                 
-                // Se acessorioMascote existe (string antiga) e acessoriosMascote não existe
                 if (data.acessorioMascote !== undefined && !data.acessoriosMascote) {
                     console.log('🔄 Migrando acessórios de string para array...');
                     
                     let acessoriosArray = [];
                     if (data.acessorioMascote && data.acessorioMascote.trim() !== '') {
-                        // Converte a string em array (divide por vírgula caso tenha)
                         acessoriosArray = data.acessorioMascote
                             .split(',')
                             .map(a => a.trim())
@@ -338,7 +356,6 @@ setImagemAtual(nomeImagem);
                     
                     await updateDoc(userDocRef, {
                         acessoriosMascote: acessoriosArray,
-                        // Remove o campo antigo
                         acessorioMascote: null
                     });
                     
@@ -361,7 +378,6 @@ setImagemAtual(nomeImagem);
                 return;
             }
 
-            // Calcula apenas os pontos das tarefas PENDENTES finalizadas
             const pontosPendentes = novosObjetivos
                 .filter(obj => obj.finalizado)
                 .reduce((total, obj) => total + obj.pontos, 0);
@@ -371,9 +387,8 @@ setImagemAtual(nomeImagem);
             
             const dadosParaSalvar = {
                 objetivos: novosObjetivos,
-                pontosTotais: pontosPendentes, // Pontos apenas das tarefas atuais
+                pontosTotais: pontosPendentes,
                 ultimaAtualizacao: new Date().toISOString()
-                // NÃO toca em pontosTotaisAcumulados aqui
             };
 
             if (docSnap.exists()) {
@@ -412,7 +427,6 @@ setImagemAtual(nomeImagem);
             
             if (docSnap.exists()) {
                 const data = docSnap.data();
-                // Usa pontos acumulados + pontos das tarefas pendentes finalizadas
                 pontosGanhos = (data.pontosTotaisAcumulados || 0) + 
                             objetivos.filter(obj => obj.finalizado).reduce((total, obj) => total + obj.pontos, 0);
                 pontosGastos = data.pontosGastos || 0;
@@ -429,11 +443,9 @@ setImagemAtual(nomeImagem);
     const toggleObjetivo = (objetivoId) => {
     const objetivo = objetivos.find(obj => obj.id === objetivoId);
     
-    // Se está marcando como finalizado, completa e remove
     if (!objetivo.finalizado) {
         completarObjetivo(objetivoId);
     }
-    // Não permite desmarcar tarefas finalizadas
 };
 
     const deleteObjetivo = (objetivoId) => {
@@ -476,52 +488,57 @@ setImagemAtual(nomeImagem);
     };
 
     const completarObjetivo = async (objetivoId) => {
-    const objetivo = objetivos.find(obj => obj.id === objetivoId);
-    
-    if (!objetivo || objetivo.finalizado) return;
-    
-    try {
-        const userId = auth.currentUser?.uid;
-        if (!userId) return;
+        const objetivo = objetivos.find(obj => obj.id === objetivoId);
+        
+        if (!objetivo || objetivo.finalizado) return;
+        
+        try {
+            const userId = auth.currentUser?.uid;
+            if (!userId) return;
 
-        const docRef = doc(db, "users", userId);
-        const docSnap = await getDoc(docRef);
-        
-        // Pega os pontos totais já acumulados
-        let pontosTotaisAcumulados = 0;
-        if (docSnap.exists()) {
-            const data = docSnap.data();
-            pontosTotaisAcumulados = data.pontosTotaisAcumulados || 0;
+            const docRef = doc(db, "users", userId);
+            const docSnap = await getDoc(docRef);
+            
+            let pontosTotaisAcumulados = 0;
+            let tarefasCompletadasTotal = 0;
+            
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                pontosTotaisAcumulados = data.pontosTotaisAcumulados || 0;
+                tarefasCompletadasTotal = (data.tarefasCompletadasTotal || 0) + 1;
+            } else {
+                tarefasCompletadasTotal = 1;
+            }
+            
+            const novoTotal = pontosTotaisAcumulados + objetivo.pontos;
+            const objetivosFiltrados = objetivos.filter(obj => obj.id !== objetivoId);
+            
+            await updateDoc(docRef, {
+                objetivos: objetivosFiltrados,
+                pontosTotaisAcumulados: novoTotal,
+                tarefasCompletadasTotal: tarefasCompletadasTotal,
+                ultimaAtualizacao: new Date().toISOString()
+            });
+            
+            setObjetivos(objetivosFiltrados);
+            
+            console.log('🎯 Tarefa completa! Total agora:', tarefasCompletadasTotal);
+            
+            setTimeout(async () => {
+                await verificarConquistas(tarefasCompletadasTotal, novoTotal);
+            }, 500);
+            
+            AlertCustom.alert(
+                "🎉 Tarefa Completa!", 
+                `Parabéns! Você ganhou ${objetivo.pontos} pontos por completar "${objetivo.title}"!`,
+                [{ text: "OK" }]
+            );
+            
+        } catch (error) {
+            console.log('Erro ao completar objetivo:', error);
+            AlertCustom.alert("Erro", "Não foi possível completar a tarefa.");
         }
-        
-        // ADICIONA os novos pontos aos já acumulados
-        const novoTotal = pontosTotaisAcumulados + objetivo.pontos;
-        
-        // Remove a tarefa da lista
-        const objetivosFiltrados = objetivos.filter(obj => obj.id !== objetivoId);
-        
-        // Salva no Firestore
-        await updateDoc(docRef, {
-            objetivos: objetivosFiltrados,
-            pontosTotaisAcumulados: novoTotal, // Novo campo acumulativo
-            ultimaAtualizacao: new Date().toISOString()
-        });
-        
-        // Atualiza o estado local
-        setObjetivos(objetivosFiltrados);
-        
-        // Exibe alerta de conclusão
-        AlertCustom.alert(
-            "🎉 Tarefa Completa!", 
-            `Parabéns! Você ganhou ${objetivo.pontos} pontos por completar "${objetivo.title}"!`,
-            [{ text: "OK" }]
-        );
-        
-    } catch (error) {
-        console.log('Erro ao completar objetivo:', error);
-        AlertCustom.alert("Erro", "Não foi possível completar a tarefa.");
-    }
-};
+    };
 
     const fecharModal = () => {
         setModalVisible(false);
@@ -583,6 +600,128 @@ setImagemAtual(nomeImagem);
             </View>
         </TouchableOpacity>
     );
+
+    const carregarConquistas = async () => {
+        try {
+            const conquistasCollection = collection(db, "achievements");
+            const conquistasSnapshot = await getDocs(conquistasCollection);
+            
+            const conquistasArray = conquistasSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            
+            setConquistas(conquistasArray);
+        } catch (error) {
+            console.log('Erro ao carregar conquistas:', error);
+        }
+    };
+
+    const verificarConquistas = async (tarefasCompletadas, pontosTotal) => {
+        try {
+            const userId = auth.currentUser?.uid;
+            if (!userId) return;
+
+            console.log('🔍 Verificando conquistas...', { tarefasCompletadas, pontosTotal });
+
+            const docRef = doc(db, "users", userId);
+            const docSnap = await getDoc(docRef);
+            
+            if (!docSnap.exists()) {
+                console.log('❌ Documento não existe');
+                return;
+            }
+            
+            const data = docSnap.data();
+            const conquistasDesbloqueadas = data.conquistasDesbloqueadas || [];
+            
+            console.log('📋 Conquistas já desbloqueadas:', conquistasDesbloqueadas);
+            console.log('📋 Total de conquistas disponíveis:', conquistas.length);
+            
+            const novasConquistas = [];
+            
+            for (const conquista of conquistas) {
+                // Se já foi desbloqueada, pula
+                if (conquistasDesbloqueadas.includes(conquista.id)) {
+                    console.log(`⏭️ Conquista ${conquista.id} já desbloqueada`);
+                    continue;
+                }
+                
+                let desbloqueada = false;
+                
+                // Verifica o tipo de conquista
+                switch (conquista.tipo) {
+                    case 'tarefas_completadas':
+                        desbloqueada = tarefasCompletadas >= conquista.meta;
+                        console.log(`🎯 ${conquista.nome}: ${tarefasCompletadas}/${conquista.meta} - ${desbloqueada ? '✅' : '❌'}`);
+                        break;
+                        
+                    case 'pontos_acumulados':
+                        desbloqueada = pontosTotal >= conquista.meta;
+                        console.log(`💎 ${conquista.nome}: ${pontosTotal}/${conquista.meta} - ${desbloqueada ? '✅' : '❌'}`);
+                        break;
+                        
+                    case 'sequencia_dias':
+                        const sequencia = data.sequenciaDias || 0;
+                        desbloqueada = sequencia >= conquista.meta;
+                        console.log(`🔥 ${conquista.nome}: ${sequencia}/${conquista.meta} - ${desbloqueada ? '✅' : '❌'}`);
+                        break;
+                        
+                    default:
+                        break;
+                }
+                
+                if (desbloqueada) {
+                    novasConquistas.push(conquista);
+                    console.log(`🎉 Nova conquista desbloqueada: ${conquista.nome}`);
+                }
+            }
+            
+            console.log('✨ Total de novas conquistas:', novasConquistas.length);
+            
+            // Se houver novas conquistas, salvar e notificar
+            if (novasConquistas.length > 0) {
+                const idsNovasConquistas = novasConquistas.map(c => c.id);
+                
+                // Atualizar conquistas desbloqueadas
+                const conquistasAtualizadas = [...conquistasDesbloqueadas, ...idsNovasConquistas];
+                
+                await updateDoc(docRef, {
+                    conquistasDesbloqueadas: conquistasAtualizadas
+                });
+                
+                console.log('💾 Conquistas salvas no Firestore:', conquistasAtualizadas);
+                
+                // Calcular bônus total
+                const bonusTotal = novasConquistas.reduce((sum, c) => sum + (c.recompensaPontos || 0), 0);
+                
+                // Adicionar pontos de bônus
+                if (bonusTotal > 0) {
+                    await updateDoc(docRef, {
+                        pontosTotaisAcumulados: pontosTotal + bonusTotal
+                    });
+                    console.log(`💰 Bônus adicionado: ${bonusTotal} pontos`);
+                }
+                
+                // Notificar usuário para cada conquista
+                for (let i = 0; i < novasConquistas.length; i++) {
+                    const conquista = novasConquistas[i];
+                    setTimeout(() => {
+                        AlertCustom.alert(
+                            `🏆 Conquista Desbloqueada!`,
+                            `${conquista.icone} ${conquista.nome}\n\n${conquista.descricao}\n\n+${conquista.recompensaPontos || 0} pontos de bônus!`,
+                            [{ text: "Incrível!" }]
+                        );
+                    }, 1000 + (i * 1500)); // Delay entre notificações
+                }
+            } else {
+                console.log('ℹ️ Nenhuma conquista nova para desbloquear');
+            }
+            
+        } catch (error) {
+            console.log('❌ Erro ao verificar conquistas:', error);
+        }
+    };
 
     return (
         <SafeAreaView style={styles.container}>
@@ -649,7 +788,6 @@ setImagemAtual(nomeImagem);
                 </View>
             </ScrollView>
 
-            {/* Modal de Novo Objetivo */}
             <Modal
                 animationType="fade"
                 transparent={true}
@@ -710,31 +848,33 @@ setImagemAtual(nomeImagem);
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#4CAF50',
-    },
-    header: {
-        backgroundColor: '#4CAF50',
-        paddingHorizontal: 20,
-        paddingVertical: 15,
+        backgroundColor: '#d1f7d4ff',
     },
     headerTop: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
+        backgroundColor: '#4CAF50',
+        paddingHorizontal: 20,
+        paddingVertical: 15,
+        borderBottomLeftRadius: 20,
+        borderBottomRightRadius: 20,
     },
     pontosHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 20,
         gap: 4,
+        borderWidth: 2,
+        borderColor: '#81C784',
     },
     pontosHeaderText: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: 'white',
+        color: '#2E7D32',
     },
     pontosHeaderIcon: {
         fontSize: 18,
@@ -754,7 +894,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingBottom: 30,
     },
-    // Estilos do Mascote
     mascoteCard: {
         backgroundColor: '#FFFFFF',
         borderRadius: 20,
@@ -805,14 +944,13 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginTop: 5,
     },
-    // Estilos dos Objetivos
     objetivosSection: {
         marginBottom: 20,
     },
     sectionTitle: {
         fontSize: 20,
         fontWeight: 'bold',
-        color: 'white',
+        color: '#1B5E20',
         marginBottom: 15,
     },
     objetivoItem: {
@@ -919,9 +1057,17 @@ const styles = StyleSheet.create({
         fontSize: 16,
     },
     addObjetivoButton: {
-        backgroundColor: 'rgba(255,255,255,0.2)',
+        backgroundColor: '#66BB6A',
         borderRadius: 16,
         marginTop: 20,
+        shadowColor: '#2E7D32',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        elevation: 3,
     },
     addObjetivoContent: {
         flexDirection: 'row',
@@ -940,7 +1086,6 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: '600',
     },
-    // Estilos do Modal
     modalOverlay: {
         flex: 1,
         backgroundColor: 'rgba(0, 0, 0, 0.5)',

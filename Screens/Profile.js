@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Sta
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth, db } from '../controller';
-import { doc, onSnapshot, getDoc, updateDoc, setDoc } from 'firebase/firestore';
+import { doc, onSnapshot, getDoc, updateDoc, setDoc, collection, getDocs } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { AlertCustom } from '../AlertCustom';
 
@@ -19,11 +19,12 @@ export default function Profile({ navigation }) {
   const [novoNomePinguim, setNovoNomePinguim] = useState('');
   const [novoAvatar, setNovoAvatar] = useState('🐧');
   const [novaCorMascote, setNovaCorMascote] = useState('azul');
+  const [conquistasDesbloqueadas, setConquistasDesbloqueadas] = useState([]);
+  const [todasConquistas, setTodasConquistas] = useState([]);
+  const [tarefasCompletadasTotal, setTarefasCompletadasTotal] = useState(0);
   
-  // Animações
   const pinguimScaleAnim = useRef(new Animated.Value(1)).current;
   
-  // Estados das tasks sincronizadas
   const [totalObjetivos, setTotalObjetivos] = useState(0);
   const [objetivosFinalizados, setObjetivosFinalizados] = useState(0);
   const [pontosGanhos, setPontosGanhos] = useState(0);
@@ -31,7 +32,6 @@ export default function Profile({ navigation }) {
 
   const avatarsDisponiveis = ['🐧', '🦈', '🦊', '🐨', '🐼', '🦁', '🐯', '🐸', '🦄', '🐱', '🐶', '🐻'];
 
-  // Imagens dos pinguins
   const imagensPinguim = {
     azul: require('../assets/azul.png'),
     verde: require('../assets/verde.png'),
@@ -44,7 +44,6 @@ export default function Profile({ navigation }) {
     { id: 'vermelho', nome: 'Vermelho', cor: '#F44336', emoji: '❤️' },
   ];
 
-  // FUNÇÃO DE LOGOUT
   const handleLogout = () => {
     AlertCustom.alert(
       'Sair da conta',
@@ -61,17 +60,11 @@ export default function Profile({ navigation }) {
             try {
               console.log('🚪 Iniciando logout...');
               
-              // 1. Faz logout do Firebase Auth
               await signOut(auth);
               console.log('✅ Logout do Firebase concluído');
               
-              // 2. Limpa dados sensíveis do AsyncStorage (opcional)
-              // Mantenha os dados do usuário salvos para próximo login
-              // await AsyncStorage.clear(); // Use apenas se quiser limpar TUDO
-              
               console.log('✅ Logout concluído com sucesso!');
               
-              // 3. Navega para tela de Login
               navigation.reset({
                 index: 0,
                 routes: [{ name: 'Login' }],
@@ -100,7 +93,6 @@ export default function Profile({ navigation }) {
       
       if (docSnap.exists()) {
         const data = docSnap.data();
-        // MESMA LÓGICA DO HOME
         pontosGanhos = (data.pontosTotaisAcumulados || 0) + 
                       objetivos.filter(obj => obj.finalizado).reduce((total, obj) => total + obj.pontos, 0);
         pontosGastos = data.pontosGastos || 0;
@@ -125,7 +117,6 @@ export default function Profile({ navigation }) {
       const total = objetivos.length;
       const finalizados = objetivos.filter(t => t.finalizado).length;
       
-      // Calcula pontos GANHOS (acumulados + pendentes)
       let pontosGanhosTotais = 0;
       if (docSnap.exists()) {
         const data = docSnap.data();
@@ -148,27 +139,31 @@ export default function Profile({ navigation }) {
     const carregarDadosIniciais = async () => {
       const userId = auth.currentUser?.uid;
       if (userId) {
-        try {
-          const docRef = doc(db, "users", userId);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            const objetivos = data.objetivos || [];
-            carregarTasks(objetivos);
-            calcularPontosDisponiveis(objetivos);
-            
-            // Carrega a cor do mascote
-            if (data.corMascote) {
-              setCorMascote(data.corMascote);
-            }
+          try {
+              const docRef = doc(db, "users", userId);
+              const docSnap = await getDoc(docRef);
+              if (docSnap.exists()) {
+                  const data = docSnap.data();
+                  const objetivos = data.objetivos || [];
+                  carregarTasks(objetivos);
+                  calcularPontosDisponiveis(objetivos);
+                  
+                  setTarefasCompletadasTotal(data.tarefasCompletadasTotal || 0);
+                  console.log('📊 Profile - Tarefas completadas total:', data.tarefasCompletadasTotal || 0);
+                  
+                  if (data.corMascote) {
+                      setCorMascote(data.corMascote);
+                  }
+              }
+          } catch (error) {
+              console.log('Profile - Erro ao carregar dados iniciais:', error);
           }
-        } catch (error) {
-          console.log('Profile - Erro ao carregar dados iniciais:', error);
-        }
       }
-    };
+  };
     
     carregarDadosIniciais();
+
+    carregarConquistasUsuario();
     
     const interval = setInterval(async () => {
       const userId = auth.currentUser?.uid;
@@ -194,33 +189,37 @@ export default function Profile({ navigation }) {
 
   useFocusEffect(
     React.useCallback(() => {
-      const userId = auth.currentUser?.uid;
-      
-      if (!userId) {
-        return;
-      }
-
-      const unsubscribe = onSnapshot(doc(db, "users", userId), (docSnap) => {
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          const objetivos = data.objetivos || [];
-          carregarTasks(objetivos);
-          calcularPontosDisponiveis(objetivos);
-          
-          // Atualiza a cor do mascote
-          if (data.corMascote) {
-            setCorMascote(data.corMascote);
-          }
+        const userId = auth.currentUser?.uid;
+        
+        if (!userId) {
+            return;
         }
-      }, (error) => {
-        console.log('Profile - Erro ao carregar dados do Firestore:', error);
-      });
 
-      return () => {
-        unsubscribe();
-      };
+        const unsubscribe = onSnapshot(doc(db, "users", userId), (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                const objetivos = data.objetivos || [];
+                carregarTasks(objetivos);
+                calcularPontosDisponiveis(objetivos);
+                
+                setTarefasCompletadasTotal(data.tarefasCompletadasTotal || 0);
+                console.log('📊 Profile Snapshot - Tarefas completadas total:', data.tarefasCompletadasTotal || 0);
+                
+                if (data.corMascote) {
+                    setCorMascote(data.corMascote);
+                }
+                
+                carregarConquistasUsuario();
+            }
+        }, (error) => {
+            console.log('Profile - Erro ao carregar dados do Firestore:', error);
+        });
+
+        return () => {
+            unsubscribe();
+        };
     }, [])
-  );
+);
 
   const carregarDados = async () => {
     try {
@@ -275,7 +274,6 @@ export default function Profile({ navigation }) {
 
   const selecionarCor = (cor) => {
     setNovaCorMascote(cor.id);
-    // Animação ao trocar
     Animated.sequence([
       Animated.timing(pinguimScaleAnim, {
         toValue: 0.85,
@@ -312,11 +310,9 @@ export default function Profile({ navigation }) {
         dataRegistro: new Date().toISOString()
       };
       
-      // Salva no AsyncStorage
       await AsyncStorage.setItem('userData', JSON.stringify(userData));
       await AsyncStorage.setItem('corMascote', novaCorMascote);
       
-      // Salva no Firestore
       const userDocRef = doc(db, "users", userId);
       const docSnap = await getDoc(userDocRef);
       
@@ -361,11 +357,41 @@ export default function Profile({ navigation }) {
 
   const progressoPercentual = calcularProgresso();
 
+  const carregarConquistasUsuario = async () => {
+    try {
+        const userId = auth.currentUser?.uid;
+        if (!userId) return;
+
+        const conquistasCollection = collection(db, "achievements");
+        const conquistasSnapshot = await getDocs(conquistasCollection);
+        const todasConquistasArray = conquistasSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+        setTodasConquistas(todasConquistasArray);
+
+        const userDocRef = doc(db, "users", userId);
+        const docSnap = await getDoc(userDocRef);
+        
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            const conquistasIds = data.conquistasDesbloqueadas || [];
+            
+            const conquistasCompletas = todasConquistasArray.filter(c => 
+                conquistasIds.includes(c.id)
+            );
+            
+            setConquistasDesbloqueadas(conquistasCompletas);
+        }
+    } catch (error) {
+        console.log('Erro ao carregar conquistas do usuário:', error);
+    }
+};
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar backgroundColor="#4CAF50" barStyle="light-content" />
       
-      {/* Header com gradiente */}
       <View style={styles.headerGradient}>
         <View style={styles.headerContent}>
           <View style={styles.headerLeft}>
@@ -392,7 +418,7 @@ export default function Profile({ navigation }) {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Card de Perfil Principal */}
+
         <View style={styles.profileMainCard}>
           <View style={styles.avatarLarge}>
             <Text style={styles.avatarEmojiLarge}>{avatarSelecionado}</Text>
@@ -404,16 +430,10 @@ export default function Profile({ navigation }) {
           <Text style={styles.profileNameLarge}>{nomeUsuario}</Text>
           <Text style={styles.pinguimNameLarge}>{nomePinguim}</Text>
           
-          {/* Stats Cards */}
           <View style={styles.statsRow}>
             <View style={styles.statCard}>
               <Text style={styles.statNumber}>{pontosDisponiveis}</Text>
               <Text style={styles.statLabel}>⚡ Pontos Disponíveis</Text>
-            </View>
-            
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{objetivosFinalizados}</Text>
-              <Text style={styles.statLabel}>✅ Completas</Text>
             </View>
             
             <View style={styles.statCard}>
@@ -423,65 +443,67 @@ export default function Profile({ navigation }) {
           </View>
         </View>
 
-        {/* Card de Progresso Melhorado */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>📊 Seu Progresso</Text>
-            <Text style={styles.sectionSubtitle}>Continue assim!</Text>
-          </View>
-          
-          <View style={styles.progressCard}>
-            <View style={styles.progressTop}>
-              <View>
-                <Text style={styles.progressTitle}>Objetivos Diários</Text>
-                <Text style={styles.progressSubtext}>
-                  {objetivosFinalizados} de {totalObjetivos} concluídos
-                </Text>
-              </View>
-              <View style={styles.percentageBadge}>
-                <Text style={styles.percentageText}>{progressoPercentual}%</Text>
-              </View>
-            </View>
-            
-            <View style={styles.progressBarContainer}>
-              <View style={styles.progressBarBackground}>
-                <View 
-                  style={[
-                    styles.progressBarFill, 
-                    { 
-                      width: `${progressoPercentual}%`,
-                      backgroundColor: progressoPercentual === 100 ? '#10B981' : 
-                                      progressoPercentual >= 50 ? '#F59E0B' : '#EF4444'
-                    }
-                  ]} 
-                />
-              </View>
-            </View>
-            
-            {progressoPercentual === 100 && (
-              <View style={styles.congratsCard}>
-                <Text style={styles.congratsText}>🎉 Parabéns! Você completou todas as tarefas hoje!</Text>
-              </View>
-            )}
-          </View>
-        </View>
+  <View style={styles.totalTasksCard}>
+      <Text style={styles.totalTasksNumber}>{tarefasCompletadasTotal}</Text>
+      <Text style={styles.totalTasksLabel}>🎯 Tarefas Completadas (Total)</Text>
+  </View>
 
-        {/* Atividades Recentes Melhoradas */}
+  <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>🏆 Conquistas</Text>
+          <Text style={styles.sectionSubtitle}>
+              {conquistasDesbloqueadas.length} de {todasConquistas.length} desbloqueadas
+          </Text>
+      </View>
+      
+      <View style={styles.achievementsCard}>
+          {todasConquistas.length === 0 ? (
+              <Text style={styles.emptyText}>Carregando conquistas...</Text>
+          ) : (
+              todasConquistas.slice(0, 8).map((conquista) => {
+                  const desbloqueada = conquistasDesbloqueadas.some(c => c.id === conquista.id);
+                  
+                  return (
+                      <View 
+                          key={conquista.id}
+                          style={[
+                              styles.achievementItem,
+                              !desbloqueada && styles.achievementLocked
+                          ]}
+                      >
+                          <Text style={[
+                              styles.achievementIcon,
+                              !desbloqueada && styles.achievementIconLocked
+                          ]}>
+                              {desbloqueada ? conquista.icone : '🔒'}
+                          </Text>
+                          <Text style={[
+                              styles.achievementText,
+                              !desbloqueada && styles.achievementTextLocked
+                          ]}>
+                              {desbloqueada ? conquista.nome : '???'}
+                          </Text>
+                      </View>
+                  );
+              })
+          )}
+      </View>
+    
+      {conquistasDesbloqueadas.length > 0 && (
+      <View style={styles.achievementsBonusCard}>
+          <Text style={styles.achievementsBonusText}>
+              💎 Bônus ganho: {conquistasDesbloqueadas.reduce((sum, c) => sum + (c.recompensaPontos || 0), 0)} pontos
+          </Text>
+      </View>
+  )}
+</View>
+
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>🕐 Atividade Recente</Text>
           </View>
           
           <View style={styles.activityCard}>
-            <View style={styles.activityItem}>
-              <View style={[styles.activityIconContainer, { backgroundColor: '#E8F5E9' }]}>
-                <Text style={styles.activityEmoji}>✅</Text>
-              </View>
-              <View style={styles.activityContent}>
-                <Text style={styles.activityTitle}>Tarefas Completadas</Text>
-                <Text style={styles.activityTime}>Hoje • {objetivosFinalizados} tarefas</Text>
-              </View>
-            </View>
             
             <View style={styles.activityDivider} />
             
@@ -497,48 +519,11 @@ export default function Profile({ navigation }) {
             
             <View style={styles.activityDivider} />
             
-            <View style={styles.activityItem}>
-              <View style={[styles.activityIconContainer, { backgroundColor: '#E3F2FD' }]}>
-                <Text style={styles.activityEmoji}>🎯</Text>
-              </View>
-              <View style={styles.activityContent}>
-                <Text style={styles.activityTitle}>Meta do Dia</Text>
-                <Text style={styles.activityTime}>
-                  {progressoPercentual === 100 ? 'Concluída! 🎉' : `${100 - progressoPercentual}% restante`}
-                </Text>
-              </View>
-            </View>
           </View>
         </View>
 
-        {/* Card de Conquistas */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>🏆 Conquistas</Text>
-          </View>
-          
-          <View style={styles.achievementsCard}>
-            <View style={styles.achievementItem}>
-              <Text style={styles.achievementIcon}>🔥</Text>
-              <Text style={styles.achievementText}>Iniciante</Text>
-            </View>
-            <View style={styles.achievementItem}>
-              <Text style={styles.achievementIcon}>⭐</Text>
-              <Text style={styles.achievementText}>Dedicado</Text>
-            </View>
-            <View style={styles.achievementItem}>
-              <Text style={styles.achievementIcon}>💪</Text>
-              <Text style={styles.achievementText}>Persistente</Text>
-            </View>
-            <View style={styles.achievementItem}>
-              <Text style={styles.achievementIcon}>🎯</Text>
-              <Text style={styles.achievementText}>Focado</Text>
-            </View>
-          </View>
-        </View>
       </ScrollView>
 
-      {/* Modal de Edição Melhorado com Cor do Pinguim */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -555,7 +540,7 @@ export default function Profile({ navigation }) {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              {/* Preview do Pinguim com Cor Selecionada */}
+
               <View style={styles.pinguimPreviewSection}>
                 <Text style={styles.previewLabel}>Preview do {novoNomePinguim || 'Pinguim'}</Text>
                 <Animated.View 
@@ -571,9 +556,8 @@ export default function Profile({ navigation }) {
                 </Animated.View>
               </View>
 
-              {/* Seleção de Cor do Pinguim */}
               <View style={styles.colorSelectionSection}>
-                <Text style={styles.colorSelectionLabel}>🎨 Cor do Pinguim</Text>
+                <Text style={styles.colorSelectionLabel}>Cor do mascote</Text>
                 <View style={styles.coresContainer}>
                   {cores.map((cor) => (
                     <TouchableOpacity
@@ -598,30 +582,29 @@ export default function Profile({ navigation }) {
                 </View>
               </View>
 
-              {/* Seleção de Avatar */}
               <View style={styles.avatarSelectionSection}>
-                <Text style={styles.avatarSelectionLabel}>😊 Escolha seu avatar</Text>
+                <Text style={styles.avatarSelectionLabel}>Escolha seu avatar</Text>
                 <ScrollView 
-                  horizontal 
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.avatarScroll}
+                    horizontal 
+                    showsHorizontalScrollIndicator={true}
+                    style={styles.avatarScroll}
+                    contentContainerStyle={styles.avatarScrollContent}
                 >
-                  {avatarsDisponiveis.map((avatar, index) => (
-                    <TouchableOpacity
-                      key={index}
-                      style={[
-                        styles.avatarOption,
-                        novoAvatar === avatar && styles.avatarOptionSelected
-                      ]}
-                      onPress={() => setNovoAvatar(avatar)}
-                    >
-                      <Text style={styles.avatarOptionEmoji}>{avatar}</Text>
-                    </TouchableOpacity>
-                  ))}
+                    {avatarsDisponiveis.map((avatar, index) => (
+                        <TouchableOpacity
+                            key={index}
+                            style={[
+                                styles.avatarOption,
+                                novoAvatar === avatar && styles.avatarOptionSelected
+                            ]}
+                            onPress={() => setNovoAvatar(avatar)}
+                        >
+                            <Text style={styles.avatarOptionEmoji}>{avatar}</Text>
+                        </TouchableOpacity>
+                    ))}
                 </ScrollView>
-              </View>
+            </View>
 
-              {/* Campos de Texto */}
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Seu nome</Text>
                 <TextInput
@@ -983,7 +966,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#4B5563',
   },
-  // Modal Styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
@@ -994,8 +976,9 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     padding: 25,
-    maxHeight: '90%',
-  },
+    paddingBottom: 40,
+    maxHeight: '85%',
+},
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1012,7 +995,6 @@ const styles = StyleSheet.create({
     color: '#7F8C8D',
     fontWeight: '300',
   },
-  // Preview do Pinguim
   pinguimPreviewSection: {
     alignItems: 'center',
     marginBottom: 20,
@@ -1026,7 +1008,7 @@ const styles = StyleSheet.create({
   pinguimPreviewContainer: {
     backgroundColor: '#F0F9FF',
     borderRadius: 20,
-    padding: 20,
+    padding: 15,
     borderWidth: 3,
     borderColor: '#BFDBFE',
     alignItems: 'center',
@@ -1037,13 +1019,12 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   pinguimPreviewImage: {
-    width: 100,
-    height: 150,
-    resizeMode: 'contain',
+      width: 80,
+      height: 120,
+      resizeMode: 'contain',
   },
-  // Seleção de Cor
   colorSelectionSection: {
-    marginBottom: 20,
+    marginBottom: 15,
   },
   colorSelectionLabel: {
     fontSize: 16,
@@ -1059,45 +1040,43 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#F9FAFB',
     borderRadius: 16,
-    padding: 14,
+    padding: 12,
     borderWidth: 3,
     borderColor: 'transparent',
-    gap: 12,
+    gap: 10,
   },
   corSelecionada: {
     backgroundColor: '#F0F9FF',
     borderWidth: 3,
-    transform: [{ scale: 1.02 }],
   },
   corCirculo: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 4,
+    shadowRadius: 4,
+    elevation: 3,
   },
   corEmoji: {
-    fontSize: 24,
+    fontSize: 20,
   },
   corNome: {
-    flex: 1,
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#1F2937',
+      flex: 1,
+      fontSize: 15,
+      fontWeight: '600',
+      color: '#1F2937',
   },
   corCheckmark: {
     fontSize: 22,
     color: '#4CAF50',
     fontWeight: 'bold',
   },
-  // Seleção de Avatar
   avatarSelectionSection: {
-    marginBottom: 20,
+    marginBottom: 15,
   },
   avatarSelectionLabel: {
     fontSize: 16,
@@ -1106,30 +1085,33 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   avatarScroll: {
-    marginBottom: 10,
+    marginBottom: 8,
+    maxHeight: 70,
+  },
+  avatarScrollContent: {
+    paddingRight: 10,
+    paddingVertical: 5,
   },
   avatarOption: {
-    width: 60,
-    height: 60,
+    width: 50,
+    height: 50,
     backgroundColor: '#F8F9FA',
-    borderRadius: 30,
+    borderRadius: 25,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 10,
     borderWidth: 3,
     borderColor: 'transparent',
   },
   avatarOptionSelected: {
     backgroundColor: '#E8F5E9',
     borderColor: '#4CAF50',
-    transform: [{ scale: 1.1 }],
   },
   avatarOptionEmoji: {
-    fontSize: 32,
+    fontSize: 26,
   },
-  // Inputs
   inputContainer: {
-    marginBottom: 18,
+    marginBottom: 12,
   },
   inputLabel: {
     fontSize: 16,
@@ -1140,26 +1122,25 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: '#F8F9FA',
     borderRadius: 15,
-    padding: 16,
-    fontSize: 16,
+    padding: 12,
+    fontSize: 15,
     color: '#2C3E50',
     borderWidth: 2,
     borderColor: '#E9ECEF',
     fontWeight: '500',
   },
-  // Botões do Modal
   modalButtons: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 10,
-    marginBottom: 10,
+    marginTop: 8,
+    marginBottom: 5,
   },
   modalButton: {
-    flex: 1,
-    paddingVertical: 16,
-    borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
+      flex: 1,
+      paddingVertical: 14,
+      borderRadius: 15,
+      alignItems: 'center',
+      justifyContent: 'center',
   },
   cancelButton: {
     backgroundColor: '#F3F4F6',
@@ -1181,5 +1162,55 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  achievementLocked: {
+    opacity: 0.4,
+  },
+  achievementIconLocked: {
+      filter: 'grayscale(100%)',
+  },
+  achievementTextLocked: {
+      color: '#9CA3AF',
+  },
+  achievementsBonusCard: {
+      backgroundColor: '#FFF9C4',
+      padding: 12,
+      borderRadius: 12,
+      marginTop: 12,
+      borderWidth: 2,
+      borderColor: '#FCD34D',
+  },
+  achievementsBonusText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: '#92400E',
+      textAlign: 'center',
+  },
+  emptyText: {
+      fontSize: 14,
+      color: '#9CA3AF',
+      textAlign: 'center',
+      padding: 20,
+  },
+  totalTasksCard: {
+    backgroundColor: '#E3F2FD',
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 12,
+    marginBottom: 20,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#2196F3',
+  },
+  totalTasksNumber: {
+      fontSize: 32,
+      fontWeight: 'bold',
+      color: '#1976D2',
+      marginBottom: 4,
+  },
+  totalTasksLabel: {
+      fontSize: 14,
+      color: '#1565C0',
+      fontWeight: '600',
   },
 });

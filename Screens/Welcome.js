@@ -17,22 +17,20 @@ import { auth, db } from '../controller';
 import { doc, updateDoc, setDoc, getDoc } from 'firebase/firestore';
 
 export default function Welcome({ navigation, route }) {
-    const [etapaAtual, setEtapaAtual] = useState('inicial'); // inicial, dados, cor, finalizando
+    const [etapaAtual, setEtapaAtual] = useState('inicial');
     const [modalVisible, setModalVisible] = useState(false);
     const [nomeUsuario, setNomeUsuario] = useState('');
     const [nomePinguim, setNomePinguim] = useState('');
     const [corSelecionada, setCorSelecionada] = useState('azul');
     const [jaTemDados, setJaTemDados] = useState(false);
-    const [mensagemBemVindo, setMensagemBemVindo] = useState('Bem-vindo ao');
+    const [mensagemBemVindo, setMensagemBemVindo] = useState('');
     
-    // Animações
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const scaleAnim = useRef(new Animated.Value(0.3)).current;
     const slideAnim = useRef(new Animated.Value(50)).current;
     const pinguimFadeAnim = useRef(new Animated.Value(0)).current;
     const pinguimScaleAnim = useRef(new Animated.Value(0.5)).current;
 
-    // Imagens dos pinguins
     const imagensPinguim = {
         azul: require('../assets/azul.png'),
         verde: require('../assets/verde.png'),
@@ -71,10 +69,8 @@ export default function Welcome({ navigation, route }) {
             })
         ]).start();
 
-        // Aguarda um pouco para animação aparecer
         await new Promise(resolve => setTimeout(resolve, 1000));
 
-        // Verifica se tem dados salvos
         await verificarDados();
     };
 
@@ -96,19 +92,27 @@ export default function Welcome({ navigation, route }) {
                 
                 if (data.nomeUsuario && data.nomePinguim) {
                     console.log('Welcome - Usuário já cadastrado');
+                    
+                    const agora = new Date();
+                    const dataRegistro = new Date(data.dataRegistro);
+                    const diferencaMinutos = (agora - dataRegistro) / (1000 * 60);
+                    
+                    if (diferencaMinutos < 2) {
+                        setMensagemBemVindo('Bem-vindo, vamos começar sua jornada!');
+                    } else {
+                        setMensagemBemVindo('Bem-vindo de volta!');
+                    }
+                    
                     setJaTemDados(true);
-                    setMensagemBemVindo('Bem-vindo de volta!');
                     
                     setTimeout(() => {
                         navigation.replace('Main');
                     }, 1500);
                 } else {
-                    // Dados incompletos - redireciona para login
                     console.log('Welcome - Dados incompletos, redirecionando');
                     navigation.replace('Login');
                 }
             } else {
-                // Usuário não existe - redireciona para login
                 navigation.replace('Login');
             }
             
@@ -124,7 +128,6 @@ export default function Welcome({ navigation, route }) {
             return;
         }
 
-        // Animação de saída do formulário
         Animated.timing(fadeAnim, {
             toValue: 0,
             duration: 300,
@@ -132,7 +135,6 @@ export default function Welcome({ navigation, route }) {
         }).start(() => {
             setEtapaAtual('cor');
             
-            // Animação de entrada do pinguim
             Animated.parallel([
                 Animated.timing(fadeAnim, {
                     toValue: 1,
@@ -180,16 +182,13 @@ export default function Welcome({ navigation, route }) {
                 dataRegistro: new Date().toISOString()
             };
             
-            // Salva no AsyncStorage
             await AsyncStorage.setItem('userData', JSON.stringify(userData));
             await AsyncStorage.setItem('corMascote', corSelecionada);
             
-            // Salva no Firestore
             const userDocRef = doc(db, "users", userId);
             const docSnap = await getDoc(userDocRef);
             
             if (docSnap.exists()) {
-                // Se já existe, atualiza APENAS se não tiver nome ainda
                 const data = docSnap.data();
                 if (!data.nomeUsuario || !data.nomePinguim) {
                     await updateDoc(userDocRef, {
@@ -197,13 +196,11 @@ export default function Welcome({ navigation, route }) {
                         nomePinguim: userData.nomePinguim,
                         avatar: userData.avatar,
                         corMascote: corSelecionada,
-                        // NÃO toca em acessoriosMascote
                         ultimaAtualizacao: new Date().toISOString()
                     });
                     console.log('Welcome - Dados do usuário novo atualizados');
                 }
             } else {
-                // Cria documento para usuário REALMENTE novo
                 await setDoc(userDocRef, {
                     email: auth.currentUser?.email || '',
                     ...userData,
@@ -217,7 +214,6 @@ export default function Welcome({ navigation, route }) {
                 console.log('Welcome - Documento criado para novo usuário');
             }
             
-            // Animação de conclusão
             Animated.sequence([
                 Animated.timing(fadeAnim, {
                     toValue: 1,
@@ -248,7 +244,7 @@ export default function Welcome({ navigation, route }) {
             </Text>
 
             <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>👤 Seu nome</Text>
+                <Text style={styles.inputLabel}>Seu nome</Text>
                 <TextInput
                     style={styles.input}
                     placeholder="Digite seu nome"
@@ -260,10 +256,10 @@ export default function Welcome({ navigation, route }) {
             </View>
 
             <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>🐧 Nome do seu pinguim</Text>
+                <Text style={styles.inputLabel}>Nome do seu mascote</Text>
                 <TextInput
                     style={styles.input}
-                    placeholder="Ex: Pingu, Gelinho, Frosty..."
+                    placeholder="Ex: Perry, Platy, Cacau..."
                     placeholderTextColor="#95A5A6"
                     value={nomePinguim}
                     onChangeText={setNomePinguim}
@@ -283,7 +279,7 @@ export default function Welcome({ navigation, route }) {
 
     const renderEtapaCor = () => (
         <Animated.View style={[styles.etapaContainer, { opacity: fadeAnim }]}>
-            <Text style={styles.modalTitle}>Escolha a cor do {nomePinguim}! 🎨</Text>
+            <Text style={styles.modalTitle}>Escolha a cor do {nomePinguim}!</Text>
             <Text style={styles.modalSubtitle}>
                 Selecione a cor que mais combina com você
             </Text>
@@ -315,7 +311,6 @@ export default function Welcome({ navigation, route }) {
                         ]}
                         onPress={() => {
                             setCorSelecionada(cor.id);
-                            // Pequena animação ao trocar
                             Animated.sequence([
                                 Animated.timing(pinguimScaleAnim, {
                                     toValue: 0.9,
@@ -372,36 +367,29 @@ export default function Welcome({ navigation, route }) {
         <View style={styles.container}>
             <Animated.View 
                 style={[
-                    styles.content,
+                    styles.textContainer,
                     {
                         opacity: fadeAnim,
-                        transform: [{ scale: scaleAnim }]
+                        transform: [{ translateY: slideAnim }]
                     }
                 ]}
             >
                 <Image 
-                    style={styles.logo} 
+                    style={styles.logoWelcome} 
                     source={require('../assets/logo_platlist.png')}
                 />
                 
-                <Animated.View 
-                    style={[
-                        styles.textContainer,
-                        {
-                            opacity: fadeAnim,
-                            transform: [{ translateY: slideAnim }]
-                        }
-                    ]}
-                >
+                {mensagemBemVindo !== '' && (
                     <Text style={styles.welcomeText}>{mensagemBemVindo}</Text>
-                    <Text style={styles.appName}>Platlist</Text>
+                )}
+                <Text style={styles.appName}>Platlist</Text>
+                {mensagemBemVindo !== '' && (
                     <Text style={styles.subtitle}>
                         {jaTemDados ? 'Carregando... 🎯' : 'Vamos começar sua jornada! 🎯'}
                     </Text>
-                </Animated.View>
+                )}
             </Animated.View>
 
-            {/* Modal de Cadastro - Agora com etapas */}
             <Modal
                 animationType="slide"
                 transparent={true}
@@ -448,6 +436,20 @@ const styles = StyleSheet.create({
         shadowRadius: 4.65,
         elevation: 8,
     },
+    logoWelcome: {
+        width: 150,
+        height: 150,
+        borderRadius: 30,
+        marginBottom: 20,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 4,
+        },
+        shadowOpacity: 0.3,
+        shadowRadius: 4.65,
+        elevation: 8,
+    },
     textContainer: {
         alignItems: 'center',
     },
@@ -474,7 +476,6 @@ const styles = StyleSheet.create({
         fontWeight: '500',
         textAlign: 'center',
     },
-    // Estilos do Modal
     modalOverlay: {
         flex: 1,
         backgroundColor: 'rgba(0, 0, 0, 0.6)',
@@ -559,7 +560,6 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: 'bold',
     },
-    // Estilos da etapa de escolha de cor
     pinguimPreview: {
         alignItems: 'center',
         marginVertical: 20,
@@ -628,7 +628,6 @@ const styles = StyleSheet.create({
         color: '#4CAF50',
         fontWeight: 'bold',
     },
-    // Estilos da etapa de finalização
     loadingEmoji: {
         fontSize: 80,
         textAlign: 'center',

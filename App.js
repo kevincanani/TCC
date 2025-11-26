@@ -27,7 +27,6 @@ function BottomTabs() {
   return(
     <AlertProvider>
     <Tab.Navigator screenOptions={{
-      // headerRight: (props)  => <Image style={{width: 50, height:50}} source={require('./assets/logo_petshop.png')}/>,
       headerStyle:{backgroundColor: '#4CAF50'},
       headerTintColor: 'white',
       tabBarActiveBackgroundColor: '#4CAF50', 

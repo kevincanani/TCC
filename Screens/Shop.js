@@ -15,7 +15,6 @@ export default function Shop() {
   const [loading, setLoading] = useState(true);
   const [acessoriosEquipados, setAcessoriosEquipados] = useState([]);
 
-  // Carrega os itens da coleção "items" do Firestore
   const carregarItensLoja = async () => {
     try {
       console.log('Shop - 📄 Carregando itens da loja do Firestore...');
@@ -49,7 +48,6 @@ export default function Shop() {
       
       if (docSnap.exists()) {
         const data = docSnap.data();
-        // MESMA LÓGICA DO HOME E PROFILE
         pontosGanhos = (data.pontosTotaisAcumulados || 0) + 
                       objetivos.filter(obj => obj.finalizado).reduce((total, obj) => total + (obj.pontos || 5), 0);
       }
@@ -135,11 +133,9 @@ export default function Shop() {
           console.log('Shop - 🔔 Firestore atualizado:');
           console.log('Shop -    Gastos:', gastos);
           console.log('Shop -    Itens:', itens);
-          //console.log('Shop -    Acessório:', acessorio);
           
           setPontosGastos(gastos);
           setItensComprados(itens);
-          //setAcessorioEquipado(acessorio);
           calcularPontosDisponiveis(objetivos, gastos);
         }
       });
@@ -174,7 +170,6 @@ export default function Shop() {
         
         console.log('Shop -    Novos acessórios:', novosAcessorios);
 
-        // Salva no Firestore
         const userDocRef = doc(db, "users", userId);
         await updateDoc(userDocRef, {
             acessoriosMascote: novosAcessorios,
@@ -182,10 +177,8 @@ export default function Shop() {
         });
         console.log('Shop - ✅ Acessórios salvos no Firestore:', novosAcessorios);
 
-        // Atualiza estado local
         setAcessoriosEquipados(novosAcessorios);
 
-        // Mensagens de feedback (sem mudanças)
         if (jaEquipado) {
             AlertCustom.alert(
                 'Acessório removido! 👕',
@@ -250,13 +243,11 @@ export default function Shop() {
               console.log('Shop -    Acessório:', item.acessorio);
               console.log('Shop -    Preço:', item.price);
               
-              // VERIFICAÇÃO: O acessório está definido?
               if (!item.acessorio) {
                 AlertCustom.alert('Erro', 'Este item não possui um acessório definido. Entre em contato com o suporte.');
                 return;
               }
               
-              // 1. Calcula novos valores
               const novosPontosGastos = pontosGastos + item.price;
               const novosPontosDisponiveis = pontosUsuario - item.price;
               const novosItensComprados = [...itensComprados, item.id];
@@ -266,7 +257,6 @@ export default function Shop() {
               console.log('Shop -    Disponíveis:', pontosUsuario, '→', novosPontosDisponiveis);
               console.log('Shop -    Itens:', itensComprados, '→', novosItensComprados);
               
-              // 2. Salva no Firestore (sem equipar automaticamente)
               const userDocRef = doc(db, "users", userId);
               await updateDoc(userDocRef, {
                 pontosGastos: novosPontosGastos,
@@ -276,20 +266,17 @@ export default function Shop() {
               
               console.log('Shop - ✅ Dados salvos no Firestore!');
               
-              // 3. Salva também no AsyncStorage (backup)
               await AsyncStorage.setItem('pontosGastos', novosPontosGastos.toString());
               await AsyncStorage.setItem('itensComprados', JSON.stringify(novosItensComprados));
               
               console.log('Shop - ✅ Dados salvos no AsyncStorage!');
               
-              // 4. Atualiza estados locais
               setPontosGastos(novosPontosGastos);
               setPontosUsuario(novosPontosDisponiveis);
               setItensComprados(novosItensComprados);
               
               console.log('Shop - ✅ Estados locais atualizados!');
               
-              // Mensagem de sucesso
               AlertCustom.alert(
                 'Compra realizada! 🎉',
                 `Você comprou ${item.name}!\n\n💰 Gastou: ${item.price} pontos\n⚡ Restantes: ${novosPontosDisponiveis} pontos\n\n👕 Toque em "Equipar" para usar o acessório!`,
@@ -311,7 +298,7 @@ export default function Shop() {
   const renderShopItem = (item) => {
     const foiComprado = itensComprados.includes(item.id);
     const podeComprar = pontosUsuario >= item.price;
-    const estaEquipado = acessoriosEquipados.includes(item.acessorio);  // Mudança aqui
+    const estaEquipado = acessoriosEquipados.includes(item.acessorio);
 
     return (
       <TouchableOpacity

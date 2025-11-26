@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
   },
   button: {
     flex: 1,
-    backgroundColor: '#9C27B0',
+    backgroundColor: '#4CAF50',
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',

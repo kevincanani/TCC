@@ -7,7 +7,6 @@ export default function SplashScreen({navigation}) {
     const loadingAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
-        // Animação de fade in e escala da logo
         Animated.parallel([
             Animated.timing(fadeAnim, {
                 toValue: 1,
@@ -22,7 +21,6 @@ export default function SplashScreen({navigation}) {
             })
         ]).start();
 
-        // Animação de loading (pulsação)
         Animated.loop(
             Animated.sequence([
                 Animated.timing(loadingAnim, {
@@ -38,7 +36,6 @@ export default function SplashScreen({navigation}) {
             ])
         ).start();
 
-        // Navega para Login após 3 segundos
         const timer = setTimeout(() => {
             navigation.replace('Login');
         }, 3000);
